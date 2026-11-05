@@ -127,6 +127,7 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   // bailing
   { pattern: 'ring-(?:1t|mini|flash)' },
   { pattern: '^ling-3[.-]0-flash' },
+  { pattern: '^ling-3[.-]1' },
   { pattern: '^inkling' },
   // bytedance
   {
@@ -194,6 +195,7 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   { pattern: '^gemini-omni-flash' },
   { pattern: '^gemini-robotics' },
   { pattern: 'gemma-?4' },
+  { pattern: '^diffusiongemma' },
   // iflytek
   { pattern: '^xopdeepseekv3\\d', toggle: true },
   { pattern: '^xopdeepseekv[4-9]', effort: ['none', 'high', 'max'] },
@@ -203,9 +205,11 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   { pattern: '^xopglmv?(?:4[5-7]|5\\d*)', toggle: true },
   { pattern: '^xsparkx2', toggle: true },
   // inception
-  { pattern: '^mercury-2' },
+  { pattern: '^mercury-[23]' },
+  // liquidai
+  { pattern: '^lfm2-5' },
   // meituan
-  { pattern: '^longcat-2[.-]0$', toggle: true },
+  { pattern: '^longcat-2[.-][1-9]$', toggle: true },
   // meta
   { pattern: '^muse-spark-open(?:-|$)', effort: ['low', 'medium', 'high', 'xhigh'], toggle: false },
   { pattern: '^muse-spark' },
@@ -217,6 +221,8 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   { pattern: 'magistral' },
   { pattern: 'mistral-small-2603' },
   { pattern: '^mistral-(?:small|medium)(?!.*instruct)' },
+  { pattern: '^mistral-large-4' },
+  { pattern: 'leanstral' },
   // moonshot
   { pattern: '^kimi-k3[.-]1-pro(?:-highspeed)?$', effort: ['low', 'high', 'max'], toggle: false },
   { pattern: '^kimi-k2[.-]7-code', toggle: false },
@@ -227,6 +233,7 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   { pattern: '^kimi-k2-thinking(?:-turbo)?$|^kimi-k(?:2[.-][5-9]\\d*|[3-9]\\d*(?:[.-]\\d+)?)(?:-[\\w-]+)?$' },
   // nvidia
   { pattern: '(?:llama-3-1-)?nemotron-(?:\\d+(?:-\\d+)*-)?(?:nano|super|ultra|lightning)' },
+  { pattern: '^nemotron-3-5' },
   { pattern: '^muse-glimmer' },
   // openai
   { pattern: '^gpt-6[.-]1-sol(?:$|-)', effort: ['low', 'medium', 'high', 'xhigh', 'max'] },
@@ -250,6 +257,7 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   { pattern: 'gpt-oss' },
   { pattern: '^(?!.*chat).*gpt-5' },
   { pattern: '^gpt-realtime-2' },
+  { pattern: '^gpt-daybreak' },
   // perplexity
   { pattern: '^sonar-reasoning|^sonar-deep-research', effort: ['low', 'medium', 'high'] },
   { pattern: 'sonar-deep-research' },
@@ -265,10 +273,21 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
   { pattern: '^hy[34]' },
   // upstage
   { pattern: '^solar-pro-?[2-9]' },
+  { pattern: '^solar-mini4' },
   // vercel
   { pattern: '^muse-spark' },
   { pattern: '^interfaze' },
   { pattern: '^laguna-s' },
+  { pattern: '^apex' },
+  { pattern: '^arrow-2' },
+  { pattern: '^beam' },
+  { pattern: '^ember-1' },
+  { pattern: '^fugu' },
+  { pattern: '^glimpse' },
+  { pattern: '^glyph-cluster' },
+  { pattern: '^muse-wonder-1-0' },
+  { pattern: '^namazu' },
+  { pattern: '^particle-1' },
   // xai
   { pattern: '^grok-4\\.3(?!.*non-reasoning)', effort: ['none', 'low', 'medium', 'high'] },
   { pattern: '^grok-4[.-][67](?!.*non-reasoning)', effort: ['low', 'medium', 'high', 'xhigh'] },

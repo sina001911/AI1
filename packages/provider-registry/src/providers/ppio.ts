@@ -74,6 +74,7 @@ export default openaiCompatible({
       apiModelId: 'baidu/ernie-4.5-vl-424b-a47b',
       modelId: 'ernie-4-5-vl-424b-a47b',
       modelVariants: ['424b'],
+      name: 'ERNIE 4.5 VL 424B A47B',
       pricing: { input: { currency: 'CNY', perMillionTokens: 3 }, output: { currency: 'CNY', perMillionTokens: 9 } }
     },
     {
@@ -157,12 +158,14 @@ export default openaiCompatible({
       apiModelId: 'moonshotai/kimi-k2-instruct',
       limits: { contextWindow: 131072, maxOutputTokens: 128000 },
       modelId: 'kimi-k2-instruct',
+      name: 'Kimi K2 Instruct',
       pricing: { input: { currency: 'CNY', perMillionTokens: 4 }, output: { currency: 'CNY', perMillionTokens: 16 } }
     },
     {
       apiModelId: 'xiaomimimo/mimo-v2-flash',
       limits: { contextWindow: 262144 },
       modelId: 'mimo-v2-flash',
+      name: 'Mimo V2 Flash',
       pricing: { input: { currency: 'CNY', perMillionTokens: 0.7 }, output: { currency: 'CNY', perMillionTokens: 2.1 } }
     },
     {
@@ -219,6 +222,7 @@ export default openaiCompatible({
       limits: { contextWindow: 32000, maxOutputTokens: 32000 },
       modelId: 'qwen2-5-7b-instruct',
       modelVariants: ['7b'],
+      name: 'Qwen2.5 7B Instruct',
       pricing: {
         input: { currency: 'CNY', perMillionTokens: 0.35 },
         output: { currency: 'CNY', perMillionTokens: 0.35 }

@@ -35,9 +35,7 @@ const chatFixedModels = [
   'mimo-v2-5',
   'mimo-v2-5-pro',
   'mimo-v2-6-flash',
-  'mimo-v2-6-pro',
-  'mimo-v2-omni',
-  'mimo-v2-pro'
+  'mimo-v2-6-pro'
 ]
 
 const chatEffortModels: Array<{
@@ -67,12 +65,7 @@ const chatEffortModels: Array<{
   },
   { modelId: 'hy3', values: ['none', 'low', 'high'] },
   { modelId: 'kimi-k3', values: ['max'] },
-  { modelId: 'minimax-m3-1-flash', values: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'max' },
-  // Stealth model, no creator entry: models.dev routes it through `@ai-sdk/openai-compatible`
-  // and prints an effort ladder, so pin chat/completions rather than let it fall back unpinned.
-  { modelId: 'ox-alpha', values: ['low', 'high', 'max'] },
-  // Same shape as ox-alpha: unclassified stealth SKU, chat/completions with a printed ladder.
-  { modelId: 'omen-alpha', values: ['low', 'high'] }
+  { modelId: 'minimax-m3-1-flash', values: ['low', 'medium', 'high', 'xhigh', 'max'], defaultEffort: 'max' }
 ]
 
 const anthropicFixedModels = ['minimax-m2-5', 'minimax-m2-7']
@@ -175,7 +168,23 @@ const endpointOverrides: Partial<ProviderModelOverride>[] = [
         wire: qwenBudgetWire
       }
     }
-  }))
+  })),
+  // models.dev-routed Go SKUs without a hand-listed endpoint: classify by the
+  // per-model `provider.npm` (or, absent npm, by the inference base url). These
+  // are model templates (no `apiModelId`) so the generator matches them against
+  // the models.dev entries and folds the endpoint pin onto the single pricing
+  // row — emitting them with an `apiModelId` instead produced duplicate rows.
+  { modelId: 'claude-haiku-5-5', endpointTypes: ['anthropic-messages'] },
+  { modelId: 'gemini-4-argon', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'gemini-4-argon-contributor', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'gpt-6-luna', endpointTypes: ['openai-responses'] },
+  { modelId: 'beam', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'cat-jam', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'iceman-contributor', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'kimi-k3-1-pro', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'longcat-2-5-preview', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'space-bunny', endpointTypes: ['openai-chat-completions'] },
+  { modelId: 'step-5-preview', endpointTypes: ['openai-chat-completions'] }
 ]
 
 export default defineProvider({

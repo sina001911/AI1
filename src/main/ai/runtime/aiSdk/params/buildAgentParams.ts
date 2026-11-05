@@ -52,6 +52,7 @@ import {
 import { registry, ToolRegistry } from '../../../tools/adapters/aiSdk/registry'
 import { createAiRepair } from '../../../tools/adapters/aiSdk/repair'
 import type { ToolEntry } from '../../../tools/adapters/aiSdk/types'
+import { resolveConfiguredVideoModel } from '../../../tools/generateVideoTool'
 import { resolveConfiguredPaintingModel } from '../../../tools/painting'
 import type { AiChatRequest, CallOverrides } from '../../../types'
 import {
@@ -502,9 +503,11 @@ export async function resolveTools(
   }
 
   const paintingModel = resolveConfiguredPaintingModel()
+  const videoModel = resolveConfiguredVideoModel()
   const selected = registry.selectActive({
     assistant,
     paintingModel: paintingModel ?? undefined,
+    videoModel: videoModel ?? undefined,
     browserEnabled,
     computerUseEnabled,
     mcpToolIds,

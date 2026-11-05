@@ -1,6 +1,7 @@
 import 'dayjs/locale/de'
 import 'dayjs/locale/el'
 import 'dayjs/locale/es'
+import 'dayjs/locale/fa'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/it'
 import 'dayjs/locale/ja'
@@ -34,6 +35,7 @@ const localeLoaders = {
   'de-DE': () => import('./locales/de-de.json'),
   'el-GR': () => import('./locales/el-gr.json'),
   'es-ES': () => import('./locales/es-es.json'),
+  'fa-IR': () => import('./locales/fa-ir.json'),
   'fr-FR': () => import('./locales/fr-fr.json'),
   'it-IT': () => import('./locales/it-it.json'),
   'ja-JP': () => import('./locales/ja-jp.json'),
@@ -63,6 +65,7 @@ const dayjsLocaleMap: Record<string, string> = {
   'de-DE': 'de',
   'el-GR': 'el',
   'es-ES': 'es',
+  'fa-IR': 'fa',
   'fr-FR': 'fr',
   'it-IT': 'it',
   'pt-PT': 'pt',

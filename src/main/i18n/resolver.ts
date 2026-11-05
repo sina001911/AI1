@@ -8,6 +8,7 @@ import deDE from './locales/de-de.json'
 import elGR from './locales/el-gr.json'
 import EnUs from './locales/en-us.json'
 import esES from './locales/es-es.json'
+import faIR from './locales/fa-ir.json'
 import frFR from './locales/fr-fr.json'
 import itIT from './locales/it-it.json'
 import JaJP from './locales/ja-jp.json'
@@ -30,6 +31,7 @@ const locales = Object.fromEntries(
     ['de-DE', deDE],
     ['el-GR', elGR],
     ['es-ES', esES],
+    ['fa-IR', faIR],
     ['fr-FR', frFR],
     ['pt-PT', ptPT],
     ['ro-RO', roRO],

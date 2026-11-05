@@ -17,6 +17,7 @@ import p_dashscope from './dashscope'
 import p_deepseek from './deepseek'
 import p_dmxapi from './dmxapi'
 import p_doubao from './doubao'
+import p_fcc from './fcc'
 import p_fireworks from './fireworks'
 import p_gateway from './gateway'
 import p_gemini from './gemini'
@@ -93,6 +94,7 @@ export const PROVIDERS: Provider[] = [
   p_new_api,
   p_lmstudio,
   p_litellm,
+  p_fcc,
   p_anthropic,
   p_claude_code,
   p_openai_codex,

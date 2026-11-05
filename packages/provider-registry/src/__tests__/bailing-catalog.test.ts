@@ -13,23 +13,22 @@ const loader = new RegistryLoader({
 })
 
 describe('Ling 3.0 Flash catalog', () => {
-  it.each([
-    ['ling-3-0-flash', 'inclusionai/ling-3.0-flash'],
-    // Upstream dropped the `:free` suffix from the fin variant's OpenRouter wire id.
-    ['ling-3-0-flash-fin', 'inclusionai/ling-3.0-flash-fin']
-  ])('serves %s through its OpenRouter wire id', (modelId, apiModelId) => {
-    expect(loader.findOverride('openrouter', apiModelId)).toMatchObject({
-      apiModelId,
-      modelId,
-      reasoningContracts: {
-        'openai-chat-completions': { support: { controls: [{ default: true, kind: 'toggle' }] } }
-      }
-    })
-    expect(loader.findModel(modelId)).toMatchObject({
-      capabilities: expect.arrayContaining(['reasoning', 'function-call']),
-      contextWindow: 262144,
-      maxOutputTokens: 32000,
-      ownedBy: 'bailing'
-    })
-  })
+  it.each([['ling-3-0-flash', 'inclusionai/ling-3.0-flash']])(
+    'serves %s through its OpenRouter wire id',
+    (modelId, apiModelId) => {
+      expect(loader.findOverride('openrouter', apiModelId)).toMatchObject({
+        apiModelId,
+        modelId,
+        reasoningContracts: {
+          'openai-chat-completions': { support: { controls: [{ default: true, kind: 'toggle' }] } }
+        }
+      })
+      expect(loader.findModel(modelId)).toMatchObject({
+        capabilities: expect.arrayContaining(['reasoning', 'function-call']),
+        contextWindow: 262144,
+        maxOutputTokens: 32000,
+        ownedBy: 'bailing'
+      })
+    }
+  )
 })

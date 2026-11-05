@@ -320,5 +320,28 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
   'ai.agent.task.run': async ({ agentId, taskId }) => {
     const fired = await application.get('AgentJobsService').runTask(agentId, taskId)
     if (!fired) throw agentTaskNotFound(taskId)
-  }
+  },
+
+  // ── Collaborative Studio: teams, members, runs ──
+  'agent.team.list': async () => application.get('AgentTeamService').listTeams(),
+  'agent.team.create': async (form) => application.get('AgentTeamService').createTeam(form),
+  'agent.team.update': async ({ teamId, patch }) => application.get('AgentTeamService').updateTeam(teamId, patch),
+  'agent.team.delete': async ({ teamId }) => application.get('AgentTeamService').deleteTeam(teamId),
+  'agent.team.member.list': async ({ teamId }) => application.get('AgentTeamService').listMembers(teamId),
+  'agent.team.member.create': async ({ teamId, member }) =>
+    application.get('AgentTeamService').createMember(teamId, member),
+  'agent.team.member.update': async ({ memberId, patch }) =>
+    application.get('AgentTeamService').updateMember(memberId, patch),
+  'agent.team.member.delete': async ({ memberId }) => application.get('AgentTeamService').deleteMember(memberId),
+  'agent.team.run.start': async ({ teamId, objective }) =>
+    application.get('AgentTeamService').startRun(teamId, objective),
+  'agent.team.run.pause': async ({ runId }) => application.get('AgentTeamService').pauseRun(runId),
+  'agent.team.run.resume': async ({ runId }) => application.get('AgentTeamService').resumeRun(runId),
+  'agent.team.run.cancel': async ({ runId }) => application.get('AgentTeamService').cancelRun(runId),
+  'agent.team.run.state': async ({ runId }) => application.get('AgentTeamService').getRunState(runId),
+  'agent.team.run.list': async ({ teamId }) => application.get('AgentTeamService').listRuns(teamId),
+  'agent.team.run.event.list': async ({ runId }) => application.get('AgentTeamService').listRunEvents(runId),
+  'agent.team.run.approve_task': async ({ runId, taskId, approved, reason }) => ({
+    ok: application.get('AgentTeamService').respondTaskApproval(runId, taskId, approved, reason)
+  })
 }

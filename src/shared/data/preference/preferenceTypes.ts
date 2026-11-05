@@ -87,6 +87,7 @@ export type LanguageVarious =
   | 'el-GR'
   | 'en-US'
   | 'es-ES'
+  | 'fa-IR'
   | 'fr-FR'
   | 'it-IT'
   | 'ja-JP'
@@ -124,6 +125,7 @@ export const SIDEBAR_FAVORITES = [
   'files',
   'code_tools',
   'notes',
+  'studio',
   'openclaw'
 ] as const
 

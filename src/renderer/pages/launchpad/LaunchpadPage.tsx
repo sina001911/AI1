@@ -13,6 +13,7 @@ import knowledgeIcon from '@renderer/assets/images/apps/launchpad-knowledge.svg'
 import miniAppIcon from '@renderer/assets/images/apps/launchpad-mini-app.svg'
 import notesIcon from '@renderer/assets/images/apps/launchpad-notes.svg'
 import paintingsIcon from '@renderer/assets/images/apps/launchpad-paintings.svg'
+import studioIcon from '@renderer/assets/images/apps/launchpad-studio.svg'
 import translateIcon from '@renderer/assets/images/apps/launchpad-translate.svg'
 import { CommandContextMenu, type CommandContextMenuExtraItem } from '@renderer/components/command'
 import SidebarShortcutIcon from '@renderer/components/icons/SidebarShortcutIcon'
@@ -47,7 +48,8 @@ const APP_ICON_SOURCES: Record<SidebarAppId, string> = {
   knowledge: knowledgeIcon,
   files: filesIcon,
   code_tools: codeToolsIcon,
-  notes: notesIcon
+  notes: notesIcon,
+  studio: studioIcon
 }
 
 export default function LaunchpadPage() {

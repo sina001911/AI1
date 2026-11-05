@@ -31,6 +31,7 @@ export default defineCreator({
       inputModalities: ['text', 'image', 'video'],
       outputModalities: ['text'],
       contextWindow: 1_000_000,
+      maxOutputTokens: 524_288,
       parameterSupport: m3Parameters,
       reasoning: { controls: [{ kind: 'effort', values: m31Efforts, default: 'max' }] }
     },

@@ -186,3 +186,13 @@ export async function downloadFileAsBase64(url: string, filename: string): Promi
     return null
   }
 }
+
+/**
+ * Download a video URL via Electron's net.fetch and return base64-encoded data.
+ * Same SSRF guard and size cap as downloadFileAsBase64. Returns null on failure.
+ */
+export async function downloadVideoAsBase64(url: string): Promise<ImageAttachment | null> {
+  const result = await downloadFileAsBase64(url, 'video.mp4')
+  if (!result) return null
+  return { data: result.data, media_type: result.media_type }
+}

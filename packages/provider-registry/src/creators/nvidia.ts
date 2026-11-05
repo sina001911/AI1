@@ -10,6 +10,7 @@ export default defineCreator({
   // `nemotron-3-5-lightning`), so a new release line only needs its tier word added here.
   reasoningFamilies: [
     { pattern: '(?:llama-3-1-)?nemotron-(?:\\d+(?:-\\d+)*-)?(?:nano|super|ultra|lightning)' },
+    { pattern: '^nemotron-3-5' },
     { pattern: '^muse-glimmer' }
   ]
 })

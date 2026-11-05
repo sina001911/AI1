@@ -122,6 +122,7 @@ export default openaiCompatible({
     })),
     {
       modelId: 'mistral-small-4-119b',
+      name: 'Mistral Small 4 119B',
       reasoningContracts: chatContract(mistralSmall4Support, effortWithOffWire)
     },
     {
@@ -138,6 +139,7 @@ export default openaiCompatible({
     },
     {
       modelId: 'seed-oss-36b-instruct',
+      name: 'Seed OSS 36B Instruct',
       reasoningContracts: chatContract(seedOssSupport, seedOssWire)
     }
   ]

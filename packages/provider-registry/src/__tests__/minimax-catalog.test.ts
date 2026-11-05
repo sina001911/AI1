@@ -54,7 +54,7 @@ describe('MiniMax M3.1 Flash catalog', () => {
 
   it('pins the OpenCode Flash offer to Chat Completions with five-tier reasoning', () => {
     expect(loader.findOverride('opencode', 'minimax-m3-1-flash')).toMatchObject({
-      apiModelId: 'minimax-m3.1-flash-free',
+      apiModelId: 'minimax-m3.1-flash',
       endpointTypes: ['openai-chat-completions'],
       reasoningContracts: {
         'openai-chat-completions': {

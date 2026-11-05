@@ -535,6 +535,8 @@ export interface PreferenceSchemas {
     // target-key-definitions/complex/complex
     'feature.translate.top_p': number
     // target-key-definitions/complex/complex
+    'feature.video.default_model_id': string | null
+    // target-key-definitions/complex/complex
     'feature.voice.auto_read.disclosure_confirmed': boolean
     // target-key-definitions/complex/complex
     'feature.voice.auto_read.enabled': boolean
@@ -899,6 +901,7 @@ export const DefaultPreferences: PreferenceSchemas = {
     'feature.translate.reasoning_effort': 'none',
     'feature.translate.temperature': 1,
     'feature.translate.top_p': 1,
+    'feature.video.default_model_id': null,
     'feature.voice.auto_read.disclosure_confirmed': false,
     'feature.voice.auto_read.enabled': false,
     'feature.voice.dictation.hold_shortcut': 'AltLeft',

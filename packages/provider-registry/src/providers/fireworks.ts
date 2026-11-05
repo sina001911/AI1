@@ -53,7 +53,10 @@ const override = (modelId: string, support: ReasoningSupport): Partial<ProviderM
   reasoningContracts: reasoningContracts(support)
 })
 
-const toggleModels = ['kimi-k2-6', 'kimi-k2-7-code']
+const toggleModels: Array<{ modelId: string; apiModelId: string }> = [
+  { modelId: 'kimi-k2-6', apiModelId: 'accounts/fireworks/models/kimi-k2p6' },
+  { modelId: 'kimi-k2-7-code', apiModelId: 'accounts/fireworks/models/kimi-k2p7-code' }
+]
 
 // `/v1/models` does not reliably list router-backed variants; keep the exact IDs
 // advertised by Fireworks' serving-path and integration docs.
@@ -96,12 +99,16 @@ const effortModels: Array<{ modelId: string; values: ReasoningEffort[] }> = [
   { modelId: 'minimax-m3', values: ['low', 'medium', 'high'] }
 ]
 
-const adjustableModels: Array<{ modelId: string; values: ReasoningEffort[] }> = [
-  { modelId: 'deepseek-v4-flash', values: ['high', 'max'] },
-  { modelId: 'deepseek-v4-pro', values: ['high', 'max'] },
-  { modelId: 'glm-5-2', values: ['high', 'max'] },
-  { modelId: 'glm-5-2-fast', values: ['high', 'max'] },
-  { modelId: 'qwen3-7-plus', values: ['low', 'medium', 'high'] }
+const adjustableModels: Array<{ modelId: string; apiModelId: string; values: ReasoningEffort[] }> = [
+  {
+    modelId: 'deepseek-v4-flash',
+    apiModelId: 'accounts/fireworks/models/deepseek-v4-flash-0731',
+    values: ['high', 'max']
+  },
+  { modelId: 'deepseek-v4-pro', apiModelId: 'accounts/fireworks/models/deepseek-v4-pro-0813', values: ['high', 'max'] },
+  { modelId: 'glm-5-2', apiModelId: 'accounts/fireworks/models/glm-5p2', values: ['high', 'max'] },
+  { modelId: 'glm-5-2-fast', apiModelId: 'accounts/fireworks/routers/glm-5p2-fast', values: ['high', 'max'] },
+  { modelId: 'qwen3-7-plus', apiModelId: 'accounts/fireworks/models/qwen3p7-plus', values: ['low', 'medium', 'high'] }
 ]
 
 export default defineProvider({
@@ -138,7 +145,7 @@ export default defineProvider({
   },
   modelsDevProvider: 'fireworks-ai',
   overrides: [
-    ...toggleModels.map((modelId) => override(modelId, toggleSupport)),
+    ...toggleModels.map(({ modelId, apiModelId }) => ({ ...override(modelId, toggleSupport), apiModelId })),
     ...fastToggleModels.map((model) => ({ ...override(model.modelId, toggleSupport), ...model })),
     {
       ...override('glm-5-1-fast', toggleSupport),
@@ -169,6 +176,9 @@ export default defineProvider({
       }
     },
     ...effortModels.map(({ modelId, values }) => override(modelId, effortSupport(values))),
-    ...adjustableModels.map(({ modelId, values }) => override(modelId, adjustableSupport(values)))
+    ...adjustableModels.map(({ modelId, apiModelId, values }) => ({
+      ...override(modelId, adjustableSupport(values)),
+      apiModelId
+    }))
   ]
 })

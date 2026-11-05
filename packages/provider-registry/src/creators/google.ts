@@ -54,7 +54,8 @@ export default defineCreator({
     },
     { pattern: '^gemini-omni-flash' },
     { pattern: '^gemini-robotics' },
-    { pattern: 'gemma-?4' }
+    { pattern: 'gemma-?4' },
+    { pattern: '^diffusiongemma' }
   ],
   families: ['gemini', 'gemma'],
   // `text-embedding-004/005` + `text-multilingual-embedding-*` are Google's Vertex embeddings — claim them

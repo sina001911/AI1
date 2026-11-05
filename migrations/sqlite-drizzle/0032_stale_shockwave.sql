@@ -1,0 +1,1 @@
+ALTER TABLE `team_task` ADD `gate` text DEFAULT 'none' NOT NULL;

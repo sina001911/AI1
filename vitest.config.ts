@@ -219,6 +219,23 @@ export default defineConfig({
           include: ['packages/web-search/src/**/__tests__/**/*.test.ts']
         }
       },
+      // agent-team 包（Collaborative Studio 领域层）单元测试配置
+      {
+        extends: true,
+        resolve: {
+          alias: {
+            '@cherrystudio/agent-team': resolve('packages/agent-team/src')
+          }
+        },
+        test: {
+          name: 'agent-team',
+          environment: 'node',
+          include: [
+            'packages/agent-team/src/**/*.{test,spec}.{ts,tsx}',
+            'packages/agent-team/src/__tests__/**/*.{test,spec}.{ts,tsx}'
+          ]
+        }
+      },
       ...[
         ['ai-sdk-provider', 'src'],
         ['remote-protocol', 'tests'],

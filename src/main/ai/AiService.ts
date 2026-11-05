@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 
+import type { SharedV3ProviderOptions } from '@ai-sdk/provider'
 import type { CreateMessageRequestParamsBase, CreateMessageResult } from '@modelcontextprotocol/client'
 import {
   type EmbeddingModelUsage,
@@ -8,6 +9,7 @@ import {
   isToolUIPart,
   type LanguageModelUsage,
   type ModelMessage,
+  experimental_generateVideo as generateVideo,
   type UIMessageChunk
 } from 'ai'
 
@@ -38,7 +40,7 @@ import { messageService } from '@main/data/services/MessageService'
 import { modelService } from '@main/data/services/ModelService'
 import { providerService } from '@main/data/services/ProviderService'
 import { installBuiltinSkills } from '@main/utils/builtinSkills'
-import { downloadImageAsBase64 } from '@main/utils/downloadAsBase64'
+import { downloadImageAsBase64, downloadVideoAsBase64 } from '@main/utils/downloadAsBase64'
 import type { CompactionSink } from '@shared/ai/compaction'
 import type { AiToolApprovalRespondRequest, AiToolApprovalRespondResponse } from '@shared/ai/transport'
 import { isDataApiNotFoundError } from '@shared/data/api/errors'
@@ -69,6 +71,10 @@ import { resolveProviderAiSdkConfig } from './provider/config'
 import { hasImageTransport, resolveImageTransport } from './provider/custom/imageTransportRegistry'
 import { deleteImageInputEntries, imageGenerationJobHandler } from './provider/custom/tasks/imageGenerationJobHandler'
 import type { ImageGenerationJobOutput, ImageGenerationJobPayload } from './provider/custom/tasks/jobTypes'
+import { videoGenerationJobHandler } from './provider/custom/tasks/videoGenerationJobHandler'
+import type { VideoGenerationJobOutput, VideoGenerationJobPayload } from './provider/custom/tasks/videoJobTypes'
+import { createVideoGenerationModel } from './provider/custom/videoGenerationModel'
+import { hasVideoTransport, resolveVideoTransport } from './provider/custom/videoTransportRegistry'
 import { buildVendorProviderOptions } from './provider/custom/wire/buildImageRequest'
 import { DEFAULT_DIFFUSION_REGISTRATION, WIRE_REGISTRY } from './provider/custom/wire/wireProfile'
 import { resolveEffectiveEndpoint, resolveWireModelId } from './provider/endpoint'
@@ -346,6 +352,22 @@ export interface AiImageResult {
   files: FileEntry[]
 }
 
+/** Video generation request. */
+export interface AiVideoRequest extends AiRequest {
+  prompt: string
+  /** Optional input image FileEntry ids for image-to-video generation. */
+  inputImageIds?: string[]
+  /** Per-attempt provider submit timeout (ms); omitted uses the transport default. */
+  requestTimeoutMs?: number
+  /** Cleanup policy stamped on the generated output FileEntries. */
+  cleanupPolicy: CleanupPolicy
+}
+
+/** Video generation result — persisted file entries (main writes the bytes). */
+export interface AiVideoResult {
+  files: FileEntry[]
+}
+
 /**
  * Map a painting input-image / mask string to FileManager create params. Preserves
  * the `AiImageRequest.inputImages` contract ("base64 data URLs or URLs") when routing
@@ -436,6 +458,7 @@ export class AiService extends BaseService {
     // would otherwise overwrite (see installProviderUserAgentInterceptor).
     this.registerDisposable(installProviderUserAgentInterceptor())
     application.get('JobManager').registerHandler('image-generation.generate', imageGenerationJobHandler)
+    application.get('JobManager').registerHandler('video-generation.generate', videoGenerationJobHandler)
     // Install built-in skills, then heal the CLAUDE_CONFIG_DIR/skills mirror once at
     // startup — chained (not two independent fire-and-forgets) so the mirror reconcile
     // always runs after builtin skills have synced to agent_global_skill this boot,
@@ -1141,6 +1164,157 @@ export class AiService extends BaseService {
 
       return { files }
     })
+  }
+
+  /**
+   * Generate a video from a text prompt. Resolves provider/model, routes through
+   * the async job system when a custom-provider transport exists, otherwise
+   * calls the AI SDK's VideoModelV3 directly.
+   */
+  async generateVideo(request: AsInProcess<AiVideoRequest>): Promise<AiVideoResult> {
+    logger.info('generateVideo started', { uniqueModelId: request.uniqueModelId })
+    const signal = request.requestOptions?.signal
+
+    const { provider, model } = this.getProviderAndModel(request)
+    const { sdkConfig } = await this.resolveTransportFor(request)
+
+    // Route through the async job system when a custom-provider transport exists.
+    const transportProviderId = provider.presetProviderId ?? provider.id
+    if (request.uniqueModelId && hasVideoTransport(transportProviderId, model.apiModelId ?? model.id)) {
+      return this.generateVideoViaJob(request, signal)
+    }
+
+    const videoProviderOptions = (sdkConfig.providerSettings as Record<string, unknown>) ?? {}
+
+    // `experimental_generateVideo` resolves a string model id through the
+    // global provider registry — Cherry's providers are wired through
+    // `@cherrystudio/ai-core`, which has no video models. Build a
+    // `VideoModelV3` from the resolved provider config + the video transport
+    // registry instead, so the SDK's submit/poll/download loop runs through
+    // the same transport layer the async job path uses.
+    const transport = resolveVideoTransport(sdkConfig.providerId, sdkConfig.modelId, sdkConfig.providerSettings)
+    if (!transport) {
+      throw new Error(
+        `Video generation: no video transport for provider '${sdkConfig.providerId}' (model '${sdkConfig.modelId}')`
+      )
+    }
+    const videoModel = createVideoGenerationModel(sdkConfig.modelId, {
+      provider: sdkConfig.providerId,
+      transport
+    })
+    const result = await generateVideo({
+      model: videoModel,
+      prompt: request.prompt,
+      n: 1,
+      providerOptions: {
+        [sdkConfig.providerId]: videoProviderOptions as SharedV3ProviderOptions
+      },
+      ...(signal ? { abortSignal: signal } : {}),
+      download: async ({ url }) => {
+        if (signal?.aborted) throw new DOMException('Video generation aborted', 'AbortError')
+        const downloaded = await downloadVideoAsBase64(url.toString())
+        if (signal?.aborted) throw new DOMException('Video generation aborted', 'AbortError')
+        if (!downloaded) throw new Error('Failed to download video')
+        return {
+          data: Buffer.from(downloaded.data, 'base64'),
+          mediaType: downloaded.media_type
+        }
+      }
+    })
+
+    const dataUrls: Base64String[] = []
+    for (const video of result.videos ?? []) {
+      if (video.base64) {
+        dataUrls.push(`data:${video.mediaType || 'video/mp4'};base64,${video.base64}`)
+      }
+    }
+
+    const fileManager = application.get('FileManager')
+    const files = await Promise.all(
+      dataUrls.map((data) =>
+        fileManager.createInternalEntry({ source: 'base64', data, cleanupPolicy: request.cleanupPolicy })
+      )
+    )
+    return { files }
+  }
+
+  /**
+   * Run an async custom-provider video generation through the job system.
+   */
+  private async generateVideoViaJob(
+    request: AsInProcess<AiVideoRequest>,
+    signal: AbortSignal | undefined
+  ): Promise<AiVideoResult> {
+    const uniqueModelId = request.uniqueModelId
+    if (!uniqueModelId) throw new Error('generateVideoViaJob requires a uniqueModelId')
+
+    const fileManager = application.get('FileManager')
+    const jobManager = application.get('JobManager')
+
+    const createdEntryIds: string[] = []
+    const inputFileIds: string[] = []
+    if (request.inputImageIds?.length) {
+      for (const id of request.inputImageIds) {
+        // Input images arrive as FileEntry ids; re-read their bytes as base64
+        // data URLs so the job handler can feed them to the transport as
+        // `inputReferences`. The re-persisted entry is job-transport scratch
+        // (delete_when_unreferenced) — its lifetime is the `job_file_ref`
+        // cascade, NOT the caller's output cleanupPolicy.
+        const { content, mime } = await fileManager.read(id, { encoding: 'base64' })
+        const entry = await fileManager.createInternalEntry({
+          source: 'base64',
+          data: `data:${mime};base64,${content}`,
+          cleanupPolicy: 'delete_when_unreferenced'
+        })
+        createdEntryIds.push(entry.id)
+        inputFileIds.push(entry.id)
+      }
+    }
+
+    const payload: VideoGenerationJobPayload = {
+      uniqueModelId,
+      prompt: request.prompt,
+      n: 1,
+      providerParams: {},
+      inputFileIds: inputFileIds.length ? inputFileIds : undefined,
+      requestTimeoutMs: request.requestTimeoutMs,
+      cleanupPolicy: request.cleanupPolicy
+    }
+
+    // Video generation owns the resource contract for its scratch inputs: their
+    // ids live in `job.input` JSON, which the file cleanup anti-join cannot see.
+    // Persist the job and its file refs in one transaction so a queued/running
+    // job never observes an input reclaimed as unreferenced.
+    const handle = application.get('DbService').withWriteTx((tx) => {
+      const jobHandle = jobManager.enqueueTx(tx, 'video-generation.generate', payload)
+      jobService.addFileRefsTx(
+        tx,
+        inputFileIds.map((fileEntryId) => ({ fileEntryId, sourceId: jobHandle.id, role: 'input' as const }))
+      )
+      return jobHandle
+    })
+
+    // Reuse the existing IPC AbortController (ai.video.abort): when it fires,
+    // cancel the job (which aborts the handler + remote task).
+    const onAbort = () => void jobManager.cancel(handle.id, 'aborted by user').catch(() => {})
+    if (signal?.aborted) onAbort()
+    else signal?.addEventListener('abort', onAbort, { once: true })
+
+    let snapshot: JobSnapshot
+    try {
+      snapshot = await handle.finished
+    } finally {
+      signal?.removeEventListener('abort', onAbort)
+    }
+
+    if (snapshot.status === 'completed') {
+      const output = snapshot.output as VideoGenerationJobOutput | null
+      return { files: output?.files ?? [] }
+    }
+    if (snapshot.status === 'cancelled') {
+      throw new DOMException('Video generation aborted', 'AbortError')
+    }
+    throw new Error(snapshot.error?.message || 'Video generation failed')
   }
 
   /**

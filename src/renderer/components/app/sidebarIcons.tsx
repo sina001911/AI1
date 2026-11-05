@@ -14,7 +14,8 @@ import {
   MousePointerClick,
   NotepadText,
   Package,
-  Palette
+  Palette,
+  Users
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -39,7 +40,8 @@ export const SIDEBAR_ICON_COMPONENTS = {
   knowledge: FileSearch,
   files: Folder,
   code_tools: CodeMateIcon,
-  notes: NotepadText
+  notes: NotepadText,
+  studio: Users
 } satisfies Record<SidebarAppId, SidebarIconComponent>
 
 const RESOURCE_ICON_COMPONENTS = {

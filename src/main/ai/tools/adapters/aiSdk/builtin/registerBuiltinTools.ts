@@ -20,6 +20,7 @@ import { createMcpResourceListToolEntry } from './McpResourceListTool'
 import { createMcpResourceReadToolEntry } from './McpResourceReadTool'
 import { createGenerateImageToolEntry } from './PaintingTool'
 import { createReadFileToolEntry } from './ReadFileTool'
+import { createGenerateVideoToolEntry } from './VideoTool'
 import { createWebFetchToolEntry } from './WebFetchTool'
 import { createWebSearchToolEntry } from './WebSearchTool'
 
@@ -36,6 +37,7 @@ export function registerBuiltinTools(reg: ToolRegistry = registry): void {
   reg.register(createMcpResourceReadToolEntry())
   reg.register(createReadFileToolEntry())
   reg.register(createGenerateImageToolEntry())
+  reg.register(createGenerateVideoToolEntry())
   reg.register(createWebFetchToolEntry())
   reg.register(createWebSearchToolEntry())
 }

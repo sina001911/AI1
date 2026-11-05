@@ -911,6 +911,36 @@
       "name": "LiteLLM"
     },
     {
+      "authOptional": true,
+      "availableInEditions": ["global", "cn"],
+      "defaultChatEndpoint": "anthropic-messages",
+      "description": "FCC (Free Claude Code) - AI model provider",
+      "endpointConfigs": {
+        "anthropic-messages": {
+          "adapterFamily": "anthropic",
+          "baseUrl": "http://127.0.0.1:1919/v1"
+        }
+      },
+      "id": "fcc",
+      "metadata": {
+        "website": {
+          "docs": "https://github.com/sina001911/fcc-pro",
+          "official": "https://github.com/sina001911/fcc-pro"
+        }
+      },
+      "name": "FCC (Free Claude Code)",
+      "serverTools": [
+        {
+          "id": "web-search",
+          "modelScope": "model-dependent"
+        },
+        {
+          "id": "url-context",
+          "modelScope": "model-dependent"
+        }
+      ]
+    },
+    {
       "availableInEditions": ["global"],
       "defaultChatEndpoint": "anthropic-messages",
       "description": "Anthropic - AI model provider",
@@ -2844,5 +2874,5 @@
       "presetProviderId": "minimax"
     }
   ],
-  "version": "e1952ef3858002a8"
+  "version": "ebef7629a5d5424b"
 }

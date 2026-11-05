@@ -6,5 +6,5 @@ export default defineCreator({
   modelsDevProviders: ['inception'],
   families: ['mercury'],
   idPrefixes: ['mercury'],
-  reasoningFamilies: [{ pattern: '^mercury-2' }]
+  reasoningFamilies: [{ pattern: '^mercury-[23]' }]
 })

@@ -76,6 +76,125 @@ export type HeartbeatDocument = z.infer<typeof HeartbeatDocumentSchema>
 export const HeartbeatRunResultSchema = z.enum(['started', 'empty', 'disabled', 'busy', 'paused'])
 export type HeartbeatRunResult = z.infer<typeof HeartbeatRunResultSchema>
 
+// ── Collaborative Studio entities (mirror the DB rows; see schemas/team*.ts) ──
+
+export const TeamEntitySchema = z.strictObject({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(120),
+  description: z.string().max(500),
+  strategy: z.enum(['sequential', 'parallel', 'dependency-based', 'leader-delegation']),
+  maxConcurrency: z.number().int().min(1).max(16),
+  leaderConfig: z.strictObject({
+    name: z.string().min(1).max(80),
+    providerId: z.string().min(1),
+    modelId: z.string().min(1),
+    temperature: z.number().min(0).max(2).optional(),
+    maxTokens: z.number().int().positive().optional(),
+    systemPrompt: z.string().max(8000)
+  }),
+  createdAt: z.number(),
+  updatedAt: z.number()
+})
+export type TeamEntity = z.infer<typeof TeamEntitySchema>
+
+export const TeamFormSchema = TeamEntitySchema.pick({
+  name: true,
+  description: true,
+  strategy: true,
+  maxConcurrency: true,
+  leaderConfig: true
+})
+export type TeamForm = z.infer<typeof TeamFormSchema>
+
+export const TeamPatchSchema = TeamFormSchema.partial()
+export type TeamPatch = z.infer<typeof TeamPatchSchema>
+
+export const TeamMemberEntitySchema = z.strictObject({
+  id: z.string().uuid(),
+  teamId: z.string().uuid(),
+  name: z.string().min(1).max(80),
+  role: z.enum(['coding', 'research', 'image', 'video', 'data-analyst', 'reviewer', 'general']),
+  providerId: z.string().min(1),
+  modelId: z.string().min(1),
+  temperature: z.number().min(0).max(2).nullable(),
+  maxTokens: z.number().int().positive().nullable(),
+  systemPrompt: z.string().max(8000),
+  toolPermissions: z.record(z.string(), z.enum(['allow', 'prompt', 'deny'])),
+  enabled: z.boolean(),
+  orderKey: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number()
+})
+export type TeamMemberEntity = z.infer<typeof TeamMemberEntitySchema>
+
+export const TeamMemberFormSchema = TeamMemberEntitySchema.pick({
+  name: true,
+  role: true,
+  providerId: true,
+  modelId: true,
+  temperature: true,
+  maxTokens: true,
+  systemPrompt: true,
+  toolPermissions: true,
+  enabled: true,
+  orderKey: true
+})
+export type TeamMemberForm = z.infer<typeof TeamMemberFormSchema>
+
+export const TeamMemberPatchSchema = TeamMemberFormSchema.partial()
+export type TeamMemberPatch = z.infer<typeof TeamMemberPatchSchema>
+
+export const TeamRunEntitySchema = z.strictObject({
+  id: z.string().uuid(),
+  teamId: z.string().uuid(),
+  objective: z.string().min(1).max(4000),
+  status: z.enum(['created', 'running', 'paused', 'completed', 'failed', 'cancelled']),
+  result: z.string().nullable(),
+  error: z.string().nullable(),
+  startedAt: z.number(),
+  completedAt: z.number().nullable(),
+  cancelledAt: z.number().nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number()
+})
+export type TeamRunEntity = z.infer<typeof TeamRunEntitySchema>
+
+export const TeamRunEventEntitySchema = z.strictObject({
+  id: z.string().uuid(),
+  runId: z.string().uuid(),
+  type: z.string().min(1),
+  payload: z.record(z.string(), z.unknown()),
+  createdAt: z.number()
+})
+export type TeamRunEventEntity = z.infer<typeof TeamRunEventEntitySchema>
+
+export const TeamRunStateSchema = z.strictObject({
+  run: TeamRunEntitySchema,
+  tasks: z.array(
+    z.strictObject({
+      id: z.string().uuid(),
+      teamId: z.string().uuid(),
+      runId: z.string().uuid().nullable(),
+      parentId: z.string().uuid().nullable(),
+      title: z.string().min(1).max(200),
+      description: z.string(),
+      assignedTo: z.string().uuid().nullable(),
+      dependencies: z.array(z.string().uuid()),
+      gate: z.enum(['none', 'approval', 'review']),
+      status: z.enum(['pending', 'queued', 'running', 'completed', 'failed', 'cancelled', 'retrying']),
+      input: z.string(),
+      output: z.string().nullable(),
+      error: z.string().nullable(),
+      retryCount: z.number().int().min(0),
+      maxRetries: z.number().int().min(0),
+      createdAt: z.number(),
+      updatedAt: z.number()
+    })
+  ),
+  events: z.array(TeamRunEventEntitySchema)
+})
+export type TeamRunState = z.infer<typeof TeamRunStateSchema>
+
 export const CreateAgentCommandSchema = AgentBaseSchema.extend({
   type: AgentEntitySchema.shape.type,
   /**
@@ -507,6 +626,76 @@ export const aiRequestSchemas = {
     // No caller reads the trigger result, so the route is void (see ipc-migration-guide.md).
     input: agentTaskRefSchema,
     output: z.void()
+  }),
+  // ── Collaborative Studio: teams, members, runs ──
+  'agent.team.list': defineRoute({
+    input: z.void(),
+    output: z.array(TeamEntitySchema)
+  }),
+  'agent.team.create': defineRoute({
+    input: TeamFormSchema,
+    output: TeamEntitySchema
+  }),
+  'agent.team.update': defineRoute({
+    input: z.object({ teamId: z.string().uuid(), patch: TeamPatchSchema }),
+    output: TeamEntitySchema
+  }),
+  'agent.team.delete': defineRoute({
+    input: z.object({ teamId: z.string().uuid() }),
+    output: z.void()
+  }),
+  'agent.team.member.list': defineRoute({
+    input: z.object({ teamId: z.string().uuid() }),
+    output: z.array(TeamMemberEntitySchema)
+  }),
+  'agent.team.member.create': defineRoute({
+    input: z.object({ teamId: z.string().uuid(), member: TeamMemberFormSchema }),
+    output: TeamMemberEntitySchema
+  }),
+  'agent.team.member.update': defineRoute({
+    input: z.object({ memberId: z.string().uuid(), patch: TeamMemberPatchSchema }),
+    output: TeamMemberEntitySchema
+  }),
+  'agent.team.member.delete': defineRoute({
+    input: z.object({ memberId: z.string().uuid() }),
+    output: z.void()
+  }),
+  'agent.team.run.start': defineRoute({
+    input: z.object({ teamId: z.string().uuid(), objective: z.string().min(1).max(4000) }),
+    output: TeamRunEntitySchema
+  }),
+  'agent.team.run.pause': defineRoute({
+    input: z.object({ runId: z.string().uuid() }),
+    output: TeamRunEntitySchema
+  }),
+  'agent.team.run.resume': defineRoute({
+    input: z.object({ runId: z.string().uuid() }),
+    output: TeamRunEntitySchema
+  }),
+  'agent.team.run.cancel': defineRoute({
+    input: z.object({ runId: z.string().uuid() }),
+    output: TeamRunEntitySchema
+  }),
+  'agent.team.run.state': defineRoute({
+    input: z.object({ runId: z.string().uuid() }),
+    output: TeamRunStateSchema
+  }),
+  'agent.team.run.list': defineRoute({
+    input: z.object({ teamId: z.string().uuid() }),
+    output: z.array(TeamRunEntitySchema)
+  }),
+  'agent.team.run.event.list': defineRoute({
+    input: z.object({ runId: z.string().uuid() }),
+    output: z.array(TeamRunEventEntitySchema)
+  }),
+  'agent.team.run.approve_task': defineRoute({
+    input: z.strictObject({
+      runId: z.string().uuid(),
+      taskId: z.string().uuid(),
+      approved: z.boolean(),
+      reason: z.string().optional()
+    }),
+    output: z.object({ ok: z.boolean() })
   })
 }
 
@@ -530,4 +719,45 @@ export type AiEventSchemas = {
   // failed (e.g. the naming model returned an auth error). Delivered to the main window only
   // — the job has no origin window — which surfaces it as a toast so the failure isn't silent.
   'ai.topic.naming_failed': { message: string }
+  // ── Collaborative Studio events (M→R broadcast) ──
+  'agent.team.run.started': { runId: string; teamId: string; objective: string }
+  'agent.team.plan_created': { runId: string; taskCount: number }
+  'agent.team.task.queued': { runId: string; taskId: string; title: string }
+  'agent.team.task.started': { runId: string; taskId: string }
+  'agent.team.task.delta': { runId: string; taskId: string; delta: string }
+  'agent.team.task.completed': { runId: string; taskId: string; output: string }
+  'agent.team.task.failed': { runId: string; taskId: string; error: string }
+  'agent.team.task.cancelled': { runId: string; taskId: string }
+  'agent.team.synthesis_started': { runId: string }
+  'agent.team.synthesis_completed': { runId: string; result: string }
+  'agent.team.run_completed': { runId: string; result: string }
+  'agent.team.run_failed': { runId: string; error: string }
+  'agent.team.run_paused': { runId: string }
+  'agent.team.run_resumed': { runId: string }
+  'agent.team.run_cancelled': { runId: string }
+  'agent.team.task.approval_requested': { runId: string; taskId: string; gate: string; reason?: string }
+  'agent.team.task.approval_resolved': {
+    runId: string
+    taskId: string
+    gate: string
+    approved: boolean
+    reason?: string
+  }
+  'agent.team.context.updated': { runId: string; delta: string; authorTaskId: string }
+  'agent.team.task.message.sent': {
+    runId: string
+    messageId: string
+    fromTaskId: string
+    toTaskId: string
+    content: string
+    createdAt: number
+  }
+  'agent.team.task.message.received': {
+    runId: string
+    taskId: string
+    messageId: string
+    fromTaskId: string
+    content: string
+    createdAt: number
+  }
 }

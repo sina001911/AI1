@@ -59,6 +59,14 @@ export function useWindowRuntime(): void {
     setDayjsLocale(language || navigator.language || defaultLanguage)
   }, [language])
 
+  // RTL languages (Persian / Arabic) flip the document direction so text,
+  //flex-end margins, and scrollbar placement all read right-to-left.
+  useEffect(() => {
+    const rtl = language === 'fa-IR'
+    document.documentElement.setAttribute('dir', rtl ? 'rtl' : 'ltr')
+    return () => document.documentElement.removeAttribute('dir')
+  }, [language])
+
   // Root background (macOS vibrancy / transparent-window aware).
   useEffect(() => {
     window.root.style.background = navBackground

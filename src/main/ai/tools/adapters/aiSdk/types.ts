@@ -27,6 +27,10 @@ export interface ToolApplyScope {
     readonly uniqueModelId: UniqueModelId
     readonly support: ImageGenerationSupport | null
   }
+  /** Video model resolved once for this request; the `generate_video` tool derives its availability from it. */
+  readonly videoModel?: {
+    readonly uniqueModelId: UniqueModelId
+  }
   /** Server allowlist + per-tool disable already applied. */
   readonly mcpToolIds: ReadonlySet<string>
   /**

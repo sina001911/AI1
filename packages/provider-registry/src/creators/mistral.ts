@@ -11,7 +11,9 @@ export default defineCreator({
     // Membership profiles (no knobs): reasoning SKUs beyond the knob rules above.
     { pattern: 'magistral' },
     { pattern: 'mistral-small-2603' },
-    { pattern: '^mistral-(?:small|medium)(?!.*instruct)' }
+    { pattern: '^mistral-(?:small|medium)(?!.*instruct)' },
+    { pattern: '^mistral-large-4' },
+    { pattern: 'leanstral' }
   ],
   idPrefixes: [
     'mistral',

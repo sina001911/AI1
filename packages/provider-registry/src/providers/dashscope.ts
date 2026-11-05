@@ -160,9 +160,7 @@ const qwenChatModels = [
   'qwen3.7-max',
   'qwen3-max',
   'qwen3-omni-flash',
-  'qwen3-vl',
   'qwen3-vl-plus',
-  'qwen3-vl-8b',
   'qwen3-vl-30b-a3b',
   'qwen3-vl-235b-a22b'
 ]

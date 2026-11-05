@@ -566,6 +566,11 @@ export type ReportArtifactsInput = z.infer<typeof reportArtifactsInputSchema>
 export type { GenerateImageOutput, GenerateImageOutputItem } from './generateImageTool'
 export { GENERATE_IMAGE_TOOL_NAME, generateImageOutputItemSchema, generateImageOutputSchema } from './generateImageTool'
 
+// ── generate_video ───────────────────────────────────────────────
+
+export type { GenerateVideoOutput, GenerateVideoOutputItem } from './generateVideoTool'
+export { GENERATE_VIDEO_TOOL_NAME, generateVideoOutputItemSchema, generateVideoOutputSchema } from './generateVideoTool'
+
 // ── agent autonomy tools (cron / notify / config) ────────────────
 // Hosted by the same in-process `cherry-tools` MCP server as the tools above. Their zod input
 // schemas live in `src/main/ai/mcp/servers/cherryAutonomyTools.ts`; only the names are shared
