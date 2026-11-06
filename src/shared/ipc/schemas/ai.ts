@@ -760,4 +760,60 @@ export type AiEventSchemas = {
     content: string
     createdAt: number
   }
+  // ── Artifact exchange events (M→R broadcast) ──
+  'agent.team.artifact.created': {
+    runId: string
+    artifact: {
+      id: string
+      taskId: string
+      name: string
+      type: string
+      contentType: string
+      sizeBytes: number
+      status: string
+    }
+  }
+  'agent.team.artifact.consumed': { runId: string; artifactId: string; consumerTaskId: string }
+  'agent.team.artifact.review_requested': { runId: string; taskId: string; artifactId: string }
+  'agent.team.artifact.review_completed': {
+    runId: string
+    review: {
+      id: string
+      reviewedTaskId: string
+      artifactId: string | null
+      verdict: string
+      summary: string
+      findings: Array<{
+        id: string
+        severity: string
+        category: string
+        message: string
+        suggestion: string | null
+        resolved: boolean
+      }>
+    }
+  }
+  // ── Conflict resolution events (M→R broadcast) ──
+  'agent.team.conflict.detected': {
+    runId: string
+    conflict: {
+      id: string
+      field: string
+      taskIds: string[]
+      positions: string[]
+      resolution: string
+    }
+  }
+  'agent.team.conflict.resolved': {
+    runId: string
+    conflict: {
+      id: string
+      field: string
+      resolution: string
+      resolvedBy: string | null
+    }
+  }
+  // ── Shared project workspace events (M→R broadcast) ──
+  'agent.team.workspace.file.locked': { runId: string; path: string; holderTaskId: string }
+  'agent.team.workspace.file.unlocked': { runId: string; path: string; holderTaskId: string }
 }

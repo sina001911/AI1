@@ -1,11 +1,14 @@
 import * as z from 'zod'
 
 import {
+  type AgentCapabilities,
+  type AgentFeature,
   type Leader,
   type ModelConfig,
   type Specialist,
   type SpecialistRole,
   type Team,
+  type ToolCapability,
   type ToolPermissionMap,
   EXECUTION_STRATEGIES,
   SPECIALIST_ROLES,
@@ -178,5 +181,102 @@ export function defaultToolPermissions(role: SpecialistRole): ToolPermissionMap 
       return { ...prompt }
     default:
       return { ...prompt }
+  }
+}
+
+/**
+ * Default capability profile for a role. Capability-based routing uses this to
+ * decide which specialist can actually perform a task, not just which role
+ * keyword matches.
+ */
+export function defaultCapabilities(role: SpecialistRole): Omit<AgentCapabilities, 'specialistId' | 'updatedAt'> {
+  const base = {
+    tools: [] as ToolCapability[],
+    features: [] as AgentFeature[],
+    throughputHint: 4,
+    supportsVision: false,
+    supportsAudio: false,
+    supportsTools: true
+  }
+  switch (role) {
+    case 'coding':
+      return {
+        ...base,
+        tools: [
+          { name: 'file.read', description: 'Read project files', permission: 'allow', cost: 'cheap' },
+          { name: 'file.write', description: 'Create or modify project files', permission: 'prompt', cost: 'cheap' },
+          { name: 'shell.execute', description: 'Run commands and tests', permission: 'prompt', cost: 'moderate' },
+          { name: 'code.test', description: 'Run test suites', permission: 'allow', cost: 'moderate' },
+          { name: 'code.review', description: 'Review code changes', permission: 'allow', cost: 'cheap' }
+        ],
+        features: ['code', 'file_read', 'file_write', 'shell_execute', 'data_analysis'],
+        throughputHint: 6
+      }
+    case 'research':
+      return {
+        ...base,
+        tools: [
+          { name: 'web.search', description: 'Search the web', permission: 'allow', cost: 'moderate' },
+          { name: 'web.fetch', description: 'Fetch a web page', permission: 'allow', cost: 'moderate' },
+          { name: 'file.read', description: 'Read documents', permission: 'allow', cost: 'cheap' }
+        ],
+        features: ['web_search', 'web_fetch', 'file_read', 'text', 'translation'],
+        throughputHint: 5
+      }
+    case 'image':
+      return {
+        ...base,
+        tools: [
+          { name: 'image.generate', description: 'Generate an image', permission: 'allow', cost: 'expensive' },
+          { name: 'image.edit', description: 'Edit an existing image', permission: 'allow', cost: 'expensive' },
+          { name: 'image.analyze', description: 'Analyze an image', permission: 'allow', cost: 'moderate' }
+        ],
+        features: ['image_generation', 'image_editing', 'vision'],
+        supportsVision: true,
+        throughputHint: 2
+      }
+    case 'video':
+      return {
+        ...base,
+        tools: [
+          { name: 'video.generate', description: 'Generate a video clip', permission: 'allow', cost: 'expensive' },
+          { name: 'video.analyze', description: 'Analyze video content', permission: 'allow', cost: 'expensive' },
+          { name: 'video.storyboard', description: 'Produce a storyboard', permission: 'allow', cost: 'moderate' }
+        ],
+        features: ['video_generation', 'video_analysis', 'vision'],
+        supportsVision: true,
+        throughputHint: 1
+      }
+    case 'data-analyst':
+      return {
+        ...base,
+        tools: [
+          { name: 'file.read', description: 'Read data files', permission: 'allow', cost: 'cheap' },
+          { name: 'data.query', description: 'Query structured data', permission: 'allow', cost: 'cheap' },
+          { name: 'data.visualize', description: 'Produce charts and reports', permission: 'allow', cost: 'cheap' }
+        ],
+        features: ['data_analysis', 'file_read', 'text'],
+        throughputHint: 4
+      }
+    case 'reviewer':
+      return {
+        ...base,
+        tools: [
+          { name: 'file.read', description: 'Read work under review', permission: 'allow', cost: 'cheap' },
+          { name: 'code.test', description: 'Run tests against work under review', permission: 'allow', cost: 'moderate' },
+          { name: 'web.fetch', description: 'Verify claims against sources', permission: 'allow', cost: 'moderate' }
+        ],
+        features: ['file_read', 'web_fetch', 'text', 'code'],
+        supportsVision: true,
+        throughputHint: 5
+      }
+    case 'general':
+    default:
+      return {
+        ...base,
+        tools: [{ name: '*', description: 'General assistance', permission: 'prompt', cost: 'cheap' }],
+        features: ['text'],
+        throughputHint: 4
+      }
   }
 }

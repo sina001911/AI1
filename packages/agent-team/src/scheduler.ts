@@ -1,5 +1,6 @@
 import {
   type AgentMessage,
+  type Artifact,
   type ExecutePlanOptions,
   type ExecutionResult,
   type SharedContext,
@@ -127,6 +128,57 @@ export function executePlan(options: SchedulerOptions): { promise: Promise<Execu
     }
   }
 
+  /**
+   * Persist a completed task's output: record it as an artifact, request an
+   * independent review when the task is gated for review, and write it into
+   * the shared project workspace. Throws on failure so the caller can roll the
+   * task back to failed instead of letting the run silently succeed.
+   */
+  async function finalizeTaskOutput(task: Task, output: string): Promise<void> {
+    if (options.artifactRegistry) {
+      const artifact = options.artifactRegistry.add({
+        id: '',
+        runId,
+        taskId: task.id,
+        name: task.title,
+        type: 'text',
+        contentType: 'text/plain',
+        content: output,
+        ref: null,
+        sizeBytes: Buffer.byteLength(output, 'utf8'),
+        status: 'draft',
+        consumedBy: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      } as Artifact)
+      emit({ type: 'artifact_created', runId, artifact })
+      // Request an independent review when the task is gated for review.
+      if (task.gate === 'review' && options.onReviewRequest) {
+        const review = await options.onReviewRequest({
+          runId,
+          taskId: task.id,
+          artifactId: artifact.id,
+          signal
+        })
+        if (review) emit({ type: 'artifact_review_completed', runId, review })
+      }
+    }
+
+    // Persist the task's output into the shared project workspace when one
+    // is supplied. Files are locked before the write and unlocked after so
+    // concurrent specialists cannot clobber each other.
+    if (options.workspace) {
+      const filePath = `tasks/${task.id}.md`
+      const file = options.workspace.writeFile(filePath, output, task.id, 'text/markdown')
+      if (file) {
+        emit({ type: 'workspace_file_locked', runId, path: filePath, holderTaskId: task.id })
+        emit({ type: 'workspace_file_unlocked', runId, path: filePath, holderTaskId: task.id })
+        // Surface the file in shared context so later specialists see it.
+        sharedContext.append(task, `Workspace file: ${filePath}`)
+      }
+    }
+  }
+
   async function runTask(task: Task): Promise<void> {
     const specialist = team.specialists.find((s) => s.id === task.assignedTo)
     if (!specialist || !specialist.enabled) {
@@ -235,6 +287,21 @@ export function executePlan(options: SchedulerOptions): { promise: Promise<Execu
         const entry = sharedContext.append(task, output)
         if (entry.delta.length > 0) {
           emit({ type: 'context_updated', runId, delta: entry.delta, authorTaskId: task.id })
+        }
+
+        // Record artifacts, request reviews, and persist workspace files.
+        // These run after the task is marked completed; if any of them fail we
+        // roll the task back to failed so the run does not silently succeed.
+        try {
+          await finalizeTaskOutput(task, output)
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err)
+          completed.delete(task.id)
+          failed.add(task.id)
+          taskErrors.set(task.id, message)
+          updateStatus({ ...task, error: message }, 'failed')
+          emit({ type: 'task_failed', runId, taskId: task.id, error: message, willRetry: false })
+          return
         }
         return
       } catch (err) {

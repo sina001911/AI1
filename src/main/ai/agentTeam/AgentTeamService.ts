@@ -1,13 +1,19 @@
 import { v4 as uuidv4 } from 'uuid'
 
+import { createId } from '@cherrystudio/agent-team/team'
 import { application } from '@application'
+import { createInMemoryArtifactRegistry } from '@cherrystudio/agent-team/registry'
+import { createInMemoryProjectWorkspace } from '@cherrystudio/agent-team/projectWorkspace'
 import { createSharedContext } from '@cherrystudio/agent-team/context'
 import { startOrchestrate } from '@cherrystudio/agent-team/execution'
 import { assignTasks } from '@cherrystudio/agent-team/plan'
+import { buildReviewPrompt } from '@cherrystudio/agent-team/review'
 import { buildSynthesisPrompt } from '@cherrystudio/agent-team/synthesis'
 import type {
+  Artifact,
   ExecutionPlan,
   ExecutionResult,
+  QualityReview,
   SharedContext,
   Specialist,
   Task,
@@ -293,6 +299,91 @@ function mapTeamEventToIpc(event: TeamEvent): { event: IpcEventName; payload: Re
           createdAt: event.message.createdAt
         }
       }
+    case 'artifact_created':
+      return {
+        event: 'agent.team.artifact.created',
+        payload: {
+          runId: event.runId,
+          artifact: {
+            id: event.artifact.id,
+            taskId: event.artifact.taskId,
+            name: event.artifact.name,
+            type: event.artifact.type,
+            contentType: event.artifact.contentType,
+            sizeBytes: event.artifact.sizeBytes,
+            status: event.artifact.status
+          }
+        }
+      }
+    case 'artifact_consumed':
+      return {
+        event: 'agent.team.artifact.consumed',
+        payload: { runId: event.runId, artifactId: event.artifactId, consumerTaskId: event.consumerTaskId }
+      }
+    case 'artifact_review_requested':
+      return {
+        event: 'agent.team.artifact.review_requested',
+        payload: { runId: event.runId, taskId: event.taskId, artifactId: event.artifactId }
+      }
+    case 'artifact_review_completed':
+      return {
+        event: 'agent.team.artifact.review_completed',
+        payload: {
+          runId: event.runId,
+          review: {
+            id: event.review.id,
+            reviewedTaskId: event.review.reviewedTaskId,
+            artifactId: event.review.artifactId,
+            verdict: event.review.verdict,
+            summary: event.review.summary,
+            findings: event.review.findings.map((f) => ({
+              id: f.id,
+              severity: f.severity,
+              category: f.category,
+              message: f.message,
+              suggestion: f.suggestion,
+              resolved: f.resolved
+            }))
+          }
+        }
+      }
+    case 'conflict_detected':
+      return {
+        event: 'agent.team.conflict.detected',
+        payload: {
+          runId: event.runId,
+          conflict: {
+            id: event.conflict.id,
+            field: event.conflict.field,
+            taskIds: event.conflict.taskIds,
+            positions: event.conflict.positions,
+            resolution: event.conflict.resolution
+          }
+        }
+      }
+    case 'conflict_resolved':
+      return {
+        event: 'agent.team.conflict.resolved',
+        payload: {
+          runId: event.runId,
+          conflict: {
+            id: event.conflict.id,
+            field: event.conflict.field,
+            resolution: event.conflict.resolution,
+            resolvedBy: event.conflict.resolvedBy
+          }
+        }
+      }
+    case 'workspace_file_locked':
+      return {
+        event: 'agent.team.workspace.file.locked',
+        payload: { runId: event.runId, path: event.path, holderTaskId: event.holderTaskId }
+      }
+    case 'workspace_file_unlocked':
+      return {
+        event: 'agent.team.workspace.file.unlocked',
+        payload: { runId: event.runId, path: event.path, holderTaskId: event.holderTaskId }
+      }
     default:
       return null
   }
@@ -504,6 +595,14 @@ export class AgentTeamService extends BaseService {
   ): RunController {
     const abortController = new AbortController()
     const sharedContext = createSharedContext()
+    const artifactRegistry = createInMemoryArtifactRegistry()
+    const workspace = createInMemoryProjectWorkspace({
+      name: team.name,
+      description: team.description,
+      objective,
+      teamId,
+      domain: 'general'
+    })
     const controller: RunController = {
       runId,
       teamId,
@@ -549,6 +648,9 @@ export class AgentTeamService extends BaseService {
       signal: abortController.signal,
       sharedContext,
       onApprovalRequest: (input) => this.requestApproval(runId, input),
+      artifactRegistry,
+      workspace,
+      onReviewRequest: (input) => this.requestReview(runId, input, team, objective, artifactRegistry),
       sendMessage: (msg) => {
         this.broadcastIpc('agent.team.task.message.sent', {
           runId: msg.runId,
@@ -625,6 +727,109 @@ export class AgentTeamService extends BaseService {
     this.pendingApprovals.delete(key)
     pending.resolve({ approved, reason })
     return true
+  }
+
+  /**
+   * Independent quality review callback. Dispatches a reviewer specialist to
+   * evaluate a task's artifact against explicit criteria. The reviewer is a
+   * real model call, not a heuristic — its findings come back as structured
+   * JSON and are broadcast to the renderer.
+   */
+  private async requestReview(
+    runId: string,
+    input: {
+      runId: string
+      taskId: string
+      artifactId: string
+      signal: AbortSignal
+    },
+    team: Team,
+    objective: string,
+    registry: { get(id: string): Artifact | undefined }
+  ): Promise<QualityReview | null> {
+    const artifact = registry.get(input.artifactId)
+    if (!artifact || !artifact.content) return null
+
+    const reviewer = team.specialists.find((s) => s.role === 'reviewer')
+    if (!reviewer) return null
+
+    const prompt = buildReviewPrompt({
+      objective,
+      artifactName: artifact.name,
+      artifactContent: artifact.content,
+      criteria: ['correctness', 'completeness', 'clarity', 'security', 'performance']
+    })
+
+    try {
+      const text = await callLeaderText(
+        {
+          providerId: reviewer.modelConfig.providerId,
+          modelId: reviewer.modelConfig.modelId,
+          temperature: reviewer.modelConfig.temperature,
+          maxTokens: reviewer.modelConfig.maxTokens,
+          systemPrompt: reviewer.systemPrompt || 'You are an independent quality reviewer.'
+        },
+        prompt
+      )
+
+      let parsed: {
+        verdict?: string
+        summary?: string
+        findings?: Array<{ severity?: string; category?: string; message?: string; suggestion?: string }>
+      }
+      try {
+        parsed = JSON.parse(text)
+      } catch {
+        return null
+      }
+
+      const review: QualityReview = {
+        id: createId(),
+        runId,
+        reviewedTaskId: input.taskId,
+        artifactId: input.artifactId,
+        reviewerTaskId: reviewer.id,
+        verdict: (parsed.verdict as 'pass' | 'conditional_pass' | 'fail') ?? 'conditional_pass',
+        summary: parsed.summary ?? text.slice(0, 200),
+        findings: (parsed.findings ?? []).map((f) => ({
+          id: createId(),
+          runId,
+          taskId: input.taskId,
+          artifactId: input.artifactId,
+          reviewerTaskId: reviewer.id,
+          severity: (f.severity as 'info' | 'warning' | 'error' | 'blocker') ?? 'info',
+          category: f.category ?? 'general',
+          message: f.message ?? '',
+          suggestion: f.suggestion ?? null,
+          resolved: false,
+          createdAt: Date.now()
+        })),
+        createdAt: Date.now()
+      }
+
+      this.broadcastIpc('agent.team.artifact.review_completed', {
+        runId,
+        review: {
+          id: review.id,
+          reviewedTaskId: review.reviewedTaskId,
+          artifactId: review.artifactId,
+          verdict: review.verdict,
+          summary: review.summary,
+          findings: review.findings
+        }
+      })
+      teamRepository.appendEvent({
+        runId,
+        type: 'artifact_review_completed',
+        payload: review as unknown as Record<string, unknown>,
+        createdAt: Date.now()
+      })
+
+      return review
+    } catch (err) {
+      logger.warn('Independent review failed', { runId, taskId: input.taskId, error: (err as Error).message })
+      return null
+    }
   }
 
   private createSynthesize(team: Team, objective: string) {

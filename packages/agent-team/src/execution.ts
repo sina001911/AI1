@@ -3,8 +3,11 @@ import { executePlan, createCancellationController } from './scheduler'
 import { buildSynthesisPrompt } from './synthesis'
 import {
   type AgentMessage,
+  type ArtifactRegistry,
   type ExecutionPlan,
   type ExecutionResult,
+  type ProjectWorkspace,
+  type QualityReview,
   type SharedContext,
   type SpecialistExecutor,
   type TaskGate,
@@ -46,6 +49,23 @@ export interface OrchestrateOptions {
   }) => Promise<{ approved: boolean; reason?: string }>
   /** Optional callback fired when a specialist sends a direct message. */
   sendMessage?: (message: AgentMessage) => void
+  /** Optional host-provided artifact registry. When supplied, the scheduler
+   * records artifacts produced by each task and routes them to consumers. */
+  artifactRegistry?: ArtifactRegistry
+  /** Optional host-provided project workspace. When supplied, the scheduler
+   * locks files before a task writes them and unlocks after, preventing
+   * concurrent modification. */
+  workspace?: ProjectWorkspace
+  /**
+   * Optional callback for requesting an independent quality review of a
+   * task's output before it is treated as final.
+   */
+  onReviewRequest?: (input: {
+    runId: string
+    taskId: string
+    artifactId: string
+    signal: AbortSignal
+  }) => Promise<QualityReview | null>
 }
 
 export interface OrchestrateHandle {
@@ -84,7 +104,10 @@ function runOrchestrate(options: OrchestrateOptions): OrchestrateHandle {
     waitForResume: options.waitForResume,
     sharedContext,
     onApprovalRequest: options.onApprovalRequest ?? (async () => ({ approved: true })),
-    sendMessage: options.sendMessage
+    sendMessage: options.sendMessage,
+    artifactRegistry: options.artifactRegistry,
+    workspace: options.workspace,
+    onReviewRequest: options.onReviewRequest
   })
 
   const resultPromise = promise.then(async (result) => {
