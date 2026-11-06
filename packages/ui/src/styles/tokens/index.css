@@ -1,5 +1,5 @@
 /**
- * CherryStudio Design Tokens
+ * AI1 Design Tokens
  *
  * Design tokens based on Figma design system
  * - All variables use --cs-* prefix (CherryStudio)
@@ -10,6 +10,9 @@
  * - colors/primitive.css: Base color palette
  * - colors/status-legacy.css: Frozen legacy status palette (shrink-only compat)
  * - colors/providers.css: Semantic --cs-* value providers backing the contract
+ * - colors/a1.css: AI1 brand primitives (midnight, electric blue, violet, cyan, orange)
+ * - gradients.css: Premium AI1 gradient layer
+ * - glass.css: Backdrop-blur glass and depth surfaces
  * - spacing.css: Spacing and sizing
  * - radius.css: Border radius
  * - typography.css: Typography system
@@ -18,6 +21,9 @@
 @import './colors/primitive.css';
 @import './colors/status-legacy.css';
 @import './colors/providers.css';
+@import './colors/a1.css';
+@import './gradients.css';
+@import './glass.css';
 @import './spacing.css';
 @import './radius.css';
 @import './typography.css';

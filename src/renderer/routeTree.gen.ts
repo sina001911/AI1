@@ -15,6 +15,8 @@ import { Route as AppAgentsRouteImport } from './routes/app/agents'
 import { Route as AppBrowserRouteImport } from './routes/app/browser'
 import { Route as AppChatRouteImport } from './routes/app/chat'
 import { Route as AppCodeRouteImport } from './routes/app/code'
+import { Route as AppCreativeLabRouteImport } from './routes/app/creative-lab'
+import { Route as AppExploreRouteImport } from './routes/app/explore'
 import { Route as AppFilePreviewRouteImport } from './routes/app/file-preview'
 import { Route as AppFilesRouteImport } from './routes/app/files'
 import { Route as AppKnowledgeRouteImport } from './routes/app/knowledge'
@@ -23,6 +25,7 @@ import { Route as AppNotesRouteImport } from './routes/app/notes'
 import { Route as AppReleaseNotesRouteImport } from './routes/app/release-notes'
 import { Route as AppStudioRouteImport } from './routes/app/studio'
 import { Route as AppTranslateRouteImport } from './routes/app/translate'
+import { Route as AppWorkflowsRouteImport } from './routes/app/workflows'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAboutRouteImport } from './routes/settings/about'
 import { Route as SettingsApiGatewayRouteImport } from './routes/settings/api-gateway'
@@ -104,6 +107,16 @@ const AppCodeRoute = AppCodeRouteImport.update({
   path: '/code',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCreativeLabRoute = AppCreativeLabRouteImport.update({
+  id: '/creative-lab',
+  path: '/creative-lab',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppExploreRoute = AppExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFilePreviewRoute = AppFilePreviewRouteImport.update({
   id: '/file-preview',
   path: '/file-preview',
@@ -142,6 +155,11 @@ const AppStudioRoute = AppStudioRouteImport.update({
 const AppTranslateRoute = AppTranslateRouteImport.update({
   id: '/translate',
   path: '/translate',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkflowsRoute = AppWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
   getParentRoute: () => AppRoute,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -407,6 +425,8 @@ export interface FileRoutesByFullPath {
   '/app/browser': typeof AppBrowserRoute
   '/app/chat': typeof AppChatRoute
   '/app/code': typeof AppCodeRoute
+  '/app/creative-lab': typeof AppCreativeLabRoute
+  '/app/explore': typeof AppExploreRoute
   '/app/file-preview': typeof AppFilePreviewRoute
   '/app/files': typeof AppFilesRoute
   '/app/knowledge': typeof AppKnowledgeRoute
@@ -415,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/studio': typeof AppStudioRoute
   '/app/translate': typeof AppTranslateRoute
+  '/app/workflows': typeof AppWorkflowsRoute
   '/settings/about': typeof SettingsAboutRoute
   '/settings/api-gateway': typeof SettingsApiGatewayRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -472,6 +493,8 @@ export interface FileRoutesByTo {
   '/app/browser': typeof AppBrowserRoute
   '/app/chat': typeof AppChatRoute
   '/app/code': typeof AppCodeRoute
+  '/app/creative-lab': typeof AppCreativeLabRoute
+  '/app/explore': typeof AppExploreRoute
   '/app/file-preview': typeof AppFilePreviewRoute
   '/app/files': typeof AppFilesRoute
   '/app/knowledge': typeof AppKnowledgeRoute
@@ -480,6 +503,7 @@ export interface FileRoutesByTo {
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/studio': typeof AppStudioRoute
   '/app/translate': typeof AppTranslateRoute
+  '/app/workflows': typeof AppWorkflowsRoute
   '/settings/about': typeof SettingsAboutRoute
   '/settings/api-gateway': typeof SettingsApiGatewayRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -536,6 +560,8 @@ export interface FileRoutesById {
   '/app/browser': typeof AppBrowserRoute
   '/app/chat': typeof AppChatRoute
   '/app/code': typeof AppCodeRoute
+  '/app/creative-lab': typeof AppCreativeLabRoute
+  '/app/explore': typeof AppExploreRoute
   '/app/file-preview': typeof AppFilePreviewRoute
   '/app/files': typeof AppFilesRoute
   '/app/knowledge': typeof AppKnowledgeRoute
@@ -544,6 +570,7 @@ export interface FileRoutesById {
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/studio': typeof AppStudioRoute
   '/app/translate': typeof AppTranslateRoute
+  '/app/workflows': typeof AppWorkflowsRoute
   '/settings/about': typeof SettingsAboutRoute
   '/settings/api-gateway': typeof SettingsApiGatewayRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -604,6 +631,8 @@ export interface FileRouteTypes {
     | '/app/browser'
     | '/app/chat'
     | '/app/code'
+    | '/app/creative-lab'
+    | '/app/explore'
     | '/app/file-preview'
     | '/app/files'
     | '/app/knowledge'
@@ -612,6 +641,7 @@ export interface FileRouteTypes {
     | '/app/release-notes'
     | '/app/studio'
     | '/app/translate'
+    | '/app/workflows'
     | '/settings/about'
     | '/settings/api-gateway'
     | '/settings/appearance'
@@ -669,6 +699,8 @@ export interface FileRouteTypes {
     | '/app/browser'
     | '/app/chat'
     | '/app/code'
+    | '/app/creative-lab'
+    | '/app/explore'
     | '/app/file-preview'
     | '/app/files'
     | '/app/knowledge'
@@ -677,6 +709,7 @@ export interface FileRouteTypes {
     | '/app/release-notes'
     | '/app/studio'
     | '/app/translate'
+    | '/app/workflows'
     | '/settings/about'
     | '/settings/api-gateway'
     | '/settings/appearance'
@@ -732,6 +765,8 @@ export interface FileRouteTypes {
     | '/app/browser'
     | '/app/chat'
     | '/app/code'
+    | '/app/creative-lab'
+    | '/app/explore'
     | '/app/file-preview'
     | '/app/files'
     | '/app/knowledge'
@@ -740,6 +775,7 @@ export interface FileRouteTypes {
     | '/app/release-notes'
     | '/app/studio'
     | '/app/translate'
+    | '/app/workflows'
     | '/settings/about'
     | '/settings/api-gateway'
     | '/settings/appearance'
@@ -841,6 +877,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCodeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/creative-lab': {
+      id: '/app/creative-lab'
+      path: '/creative-lab'
+      fullPath: '/app/creative-lab'
+      preLoaderRoute: typeof AppCreativeLabRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/explore': {
+      id: '/app/explore'
+      path: '/explore'
+      fullPath: '/app/explore'
+      preLoaderRoute: typeof AppExploreRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/file-preview': {
       id: '/app/file-preview'
       path: '/file-preview'
@@ -895,6 +945,13 @@ declare module '@tanstack/react-router' {
       path: '/translate'
       fullPath: '/app/translate'
       preLoaderRoute: typeof AppTranslateRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/workflows': {
+      id: '/app/workflows'
+      path: '/workflows'
+      fullPath: '/app/workflows'
+      preLoaderRoute: typeof AppWorkflowsRouteImport
       parentRoute: typeof AppRoute
     }
     '/settings/': {
@@ -1255,6 +1312,8 @@ interface AppRouteChildren {
   AppBrowserRoute: typeof AppBrowserRoute
   AppChatRoute: typeof AppChatRoute
   AppCodeRoute: typeof AppCodeRoute
+  AppCreativeLabRoute: typeof AppCreativeLabRoute
+  AppExploreRoute: typeof AppExploreRoute
   AppFilePreviewRoute: typeof AppFilePreviewRoute
   AppFilesRoute: typeof AppFilesRoute
   AppKnowledgeRoute: typeof AppKnowledgeRoute
@@ -1263,6 +1322,7 @@ interface AppRouteChildren {
   AppReleaseNotesRoute: typeof AppReleaseNotesRoute
   AppStudioRoute: typeof AppStudioRoute
   AppTranslateRoute: typeof AppTranslateRoute
+  AppWorkflowsRoute: typeof AppWorkflowsRoute
   AppMiniAppAppIdRoute: typeof AppMiniAppAppIdRoute
   AppPaintingsSplatRoute: typeof AppPaintingsSplatRoute
   AppMiniAppIndexRoute: typeof AppMiniAppIndexRoute
@@ -1274,6 +1334,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppBrowserRoute: AppBrowserRoute,
   AppChatRoute: AppChatRoute,
   AppCodeRoute: AppCodeRoute,
+  AppCreativeLabRoute: AppCreativeLabRoute,
+  AppExploreRoute: AppExploreRoute,
   AppFilePreviewRoute: AppFilePreviewRoute,
   AppFilesRoute: AppFilesRoute,
   AppKnowledgeRoute: AppKnowledgeRoute,
@@ -1282,6 +1344,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReleaseNotesRoute: AppReleaseNotesRoute,
   AppStudioRoute: AppStudioRoute,
   AppTranslateRoute: AppTranslateRoute,
+  AppWorkflowsRoute: AppWorkflowsRoute,
   AppMiniAppAppIdRoute: AppMiniAppAppIdRoute,
   AppPaintingsSplatRoute: AppPaintingsSplatRoute,
   AppMiniAppIndexRoute: AppMiniAppIndexRoute,

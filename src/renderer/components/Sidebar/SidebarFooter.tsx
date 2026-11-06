@@ -3,6 +3,7 @@ import React from 'react'
 
 import { Button } from '@cherrystudio/ui'
 
+import { AppLogo } from '@renderer/components/brand/AppLogo'
 import { UserAvatar } from './primitives'
 import { SidebarTooltip } from './Tooltip'
 import type { SidebarUser, SidebarVisibleLayout } from './types'
@@ -20,22 +21,29 @@ export interface SidebarFooterProps {
   onExtensionsClick?: () => void
   onOverlayOpenChange?: (open: boolean) => void
   renderUserTrigger?: (trigger: React.ReactElement) => React.ReactElement
+  /** AI1 brand mark rendered at the top of both footer layouts. */
+  logo?: React.ReactElement
 }
 
-export function SidebarFooter({ layout, actions, userAction, onOverlayOpenChange, ...props }: SidebarFooterProps) {
+export function SidebarFooter({ layout, actions, userAction, onOverlayOpenChange, logo, ...props }: SidebarFooterProps) {
   const resolvedActions = typeof actions === 'function' ? actions(layout, onOverlayOpenChange) : actions
   const resolvedUserAction = typeof userAction === 'function' ? userAction(layout, onOverlayOpenChange) : userAction
 
-  if (layout === 'icon') return <IconFooter actions={resolvedActions} userAction={resolvedUserAction} {...props} />
-  return <FullFooter actions={resolvedActions} userAction={resolvedUserAction} {...props} />
+  if (layout === 'icon') return <IconFooter actions={resolvedActions} userAction={resolvedUserAction} logo={logo} {...props} />
+  return <FullFooter actions={resolvedActions} userAction={resolvedUserAction} logo={logo} {...props} />
 }
 
 type FooterProps = Omit<SidebarFooterProps, 'layout' | 'actions' | 'userAction' | 'onOverlayOpenChange'> & {
   actions?: React.ReactNode
   userAction?: React.ReactNode
+  logo?: React.ReactElement
 }
 
-function IconFooter({ user, userAction, actions, extensionsLabel, onExtensionsClick, renderUserTrigger }: FooterProps) {
+function IconFooter({ user, userAction, actions, extensionsLabel, onExtensionsClick, renderUserTrigger, logo }: FooterProps) {
+  return (
+    <div className="flex flex-col items-center gap-1 px-1.5 pt-2 pb-2.5 [-webkit-app-region:no-drag]">
+      {logo ?? <AppLogo className="size-5" />}
+      {extensionsLabel && (
   const userButton = user ? (
     <Button
       type="button"
@@ -72,7 +80,7 @@ function IconFooter({ user, userAction, actions, extensionsLabel, onExtensionsCl
   )
 }
 
-function FullFooter({ user, userAction, actions, extensionsLabel, onExtensionsClick, renderUserTrigger }: FooterProps) {
+function FullFooter({ user, userAction, actions, extensionsLabel, onExtensionsClick, renderUserTrigger, logo }: FooterProps) {
   const userButton = user ? (
     <Button
       type="button"
@@ -87,6 +95,7 @@ function FullFooter({ user, userAction, actions, extensionsLabel, onExtensionsCl
 
   return (
     <div className="space-y-1 px-2 pt-2 pb-3 [-webkit-app-region:no-drag]">
+      {logo ?? <AppLogo className="size-5 shrink-0" />}
       {extensionsLabel && (
         <Button
           type="button"

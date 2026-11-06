@@ -85,6 +85,18 @@
   /* Stable product domain: user-message surface */
   --chat-user: rgba(0, 0, 0, 0.045);
 
+  /* AI1 product domain: brand surfaces and gradients.
+   * `--a1-surface` is the midnight canvas every AI1 page renders on top of.
+   * `--a1-gradient-*` compose into hero, logo, and studio state ribbons. */
+  --a1-surface: var(--a1-midnight);
+  --a1-surface-elevated: var(--a1-midnight-soft);
+  --a1-gradient-ribbon: var(--a1-gradient-ribbon);
+  --a1-gradient-cosmos: var(--a1-gradient-cosmos);
+  --a1-gradient-frost: var(--a1-gradient-frost);
+  --a1-gradient-sunset: var(--a1-gradient-sunset);
+  --a1-gradient-aurora: var(--a1-gradient-aurora);
+  --a1-gradient-text: var(--a1-gradient-text);
+
   /* Stable product domain: cross-surface resource-list rows */
   /* Hover and selected share one fill */
   --resource-list-row-hover: var(--resource-list-row-selected);

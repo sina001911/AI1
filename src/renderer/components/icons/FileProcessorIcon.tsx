@@ -2,7 +2,7 @@ import { FileText } from 'lucide-react'
 
 import type { CompoundIcon } from '@cherrystudio/ui'
 import { Application, Doc2x, Intel, Mineru, Mistral, Paddleocr, TesseractJs } from '@cherrystudio/ui/icons/providers'
-import AppLogo from '@renderer/assets/images/logo.png'
+import AppLogo from '@renderer/assets/logo-a1.svg'
 import { cn } from '@renderer/utils/style'
 import type { FileProcessorId } from '@shared/data/preference/preferenceTypes'
 

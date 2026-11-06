@@ -1,5 +1,5 @@
-appId: com.kangfenmao.CherryStudio
-productName: Cherry Studio
+appId: com.kangfenmao.AI1
+productName: AI1
 extraMetadata:
   cherryEdition: global
 electronLanguages:
@@ -16,9 +16,9 @@ directories:
   buildResources: build
 
 protocols:
-  - name: Cherry Studio
+  - name: AI1
     schemes:
-      - cherrystudio
+      - ai1
 files:
   - "**/*"
   - "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**"

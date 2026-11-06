@@ -1,8 +1,8 @@
 {
-  "name": "CherryStudio",
+  "name": "AI1",
   "version": "2.1.9",
   "private": true,
-  "description": "A powerful AI assistant for producer.",
+  "description": "AI1 — Your Personal AI Universe.",
   "homepage": "https://github.com/CherryHQ/cherry-studio",
   "author": "support@cherry-ai.com",
   "main": "./out/main/main.js",
@@ -597,5 +597,5 @@
     "node": ">=24.12.0"
   },
   "packageManager": "pnpm@12.6.0+sha512.3ef68f951cb111ac204b4a5a16f0b2ddf0da56a96e0413e81d855d9f0b55ef926714709028e1cd00c405c2c5fb7b9e8ec4dc46777c805d0373c2f2ff00fd20ec",
-  "desktopName": "CherryStudio.desktop"
+  "desktopName": "AI1.desktop"
 }

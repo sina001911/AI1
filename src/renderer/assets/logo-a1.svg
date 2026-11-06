@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="a1-ribbon" x1="0" y1="0" x2="1" y2="1" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="a1-glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ambient halo -->
+  <ellipse cx="60" cy="64" rx="46" ry="42" fill="url(#a1-glow)"/>
+
+  <!--
+    One continuous ribbon. It opens the A at bottom-left, climbs the left leg to
+    the apex, descends the right leg, then that same stroke rolls over into the
+    "1": up to its top flag, back down the stem, and out to the serif foot.
+    The A's crossbar is a short continuation off the left leg.
+  -->
+  <path d="
+    M 30 92
+    C 30 72, 36 56, 48 44
+    C 54 38, 60 30, 66 30
+    C 70 30, 73 33, 74 38
+    C 78 50, 82 60, 86 66
+    C 90 60, 94 48, 94 40
+    C 94 36, 91 34, 87 34
+    L 78 34
+    C 78 34, 78 40, 78 44
+    C 78 56, 78 70, 78 84
+    L 78 92
+    L 66 92
+    "
+    fill="none" stroke="url(#a1-ribbon)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- crossbar of the A, branching off the left leg -->
+  <path d="M 42 66 L 76 66" fill="none" stroke="url(#a1-ribbon)" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- serif foot of the 1 -->
+  <path d="M 66 92 L 86 92" fill="none" stroke="url(#a1-ribbon)" stroke-width="5" stroke-linecap="round"/>
+</svg>

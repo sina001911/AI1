@@ -1,0 +1,16 @@
+/**
+ * AI1 Gradients
+ *
+ * Premium brand gradients used on hero surfaces, logo marks, and the
+ * collaborative-studio state ribbons. Defined as CSS custom properties so
+ * they compose in `background-image` and stay theme-aware.
+ */
+
+:root {
+  --a1-gradient-ribbon: linear-gradient(135deg, var(--a1-electric-500), var(--a1-violet-500));
+  --a1-gradient-cosmos: linear-gradient(135deg, var(--a1-midnight), var(--a1-violet-900));
+  --a1-gradient-frost: linear-gradient(135deg, var(--a1-cyan-400), var(--a1-electric-500));
+  --a1-gradient-sunset: linear-gradient(135deg, var(--a1-orange-400), var(--a1-violet-600));
+  --a1-gradient-aurora: linear-gradient(120deg, var(--a1-cyan-500), var(--a1-electric-500), var(--a1-violet-500));
+  --a1-gradient-text: linear-gradient(120deg, var(--a1-electric-400), var(--a1-cyan-400));
+}

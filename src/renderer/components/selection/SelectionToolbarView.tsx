@@ -6,7 +6,7 @@ import type { FC, Ref } from 'react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import AppLogo from '@renderer/assets/images/logo.png'
+import AppLogo from '@renderer/assets/logo-a1.svg'
 import { cn } from '@renderer/utils/style'
 import type { SelectionActionItem } from '@shared/data/preference/preferenceTypes'
 

@@ -18,6 +18,11 @@ const routeTitleKeys: Record<string, string> = {
   '/app/code': 'title.code',
   '/app/notes': 'title.notes',
   '/app/release-notes': 'settings.about.releases.title',
+  '/app/studio': 'title.studio',
+  '/app/workflows': 'title.workflows',
+  '/app/creative-lab': 'title.creative_lab',
+  '/app/explore': 'title.explore',
+  '/app/personalization': 'title.personalization',
   '/settings': 'title.settings'
 }
 

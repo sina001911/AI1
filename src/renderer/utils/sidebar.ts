@@ -102,6 +102,22 @@ const SIDEBAR_APP_DEFINITIONS = [
   {
     id: 'studio',
     routePrefix: '/app/studio'
+  },
+  {
+    id: 'workflows',
+    routePrefix: '/app/workflows'
+  },
+  {
+    id: 'creative_lab',
+    routePrefix: '/app/creative-lab'
+  },
+  {
+    id: 'explore',
+    routePrefix: '/app/explore'
+  },
+  {
+    id: 'personalization',
+    routePrefix: '/app/personalization'
   }
 ] as const satisfies readonly SidebarAppDefinition[]
 

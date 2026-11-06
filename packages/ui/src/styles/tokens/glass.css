@@ -1,0 +1,30 @@
+/**
+ * AI1 Glass & Depth
+ *
+ * Backdrop-blur surfaces and layered elevation for the AI1 product shell.
+ * Pure cosmetic layer; it never changes the Shadcn contract or the
+ * product semantic values it reads from.
+ */
+
+:root {
+  --a1-glass-bg: oklch(0.16 0.012 252 / 0.62);
+  --a1-glass-border: oklch(0.32 0.014 252 / 0.55);
+  --a1-glass-blur: 18px;
+  --a1-glass-saturate: 140%;
+
+  --a1-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+  --a1-shadow-md: 0 8px 24px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.3);
+  --a1-shadow-lg: 0 24px 60px oklch(0 0 0 / 0.6), 0 4px 12px oklch(0 0 0 / 0.35);
+  --a1-shadow-glow: 0 0 0 1px var(--a1-electric-600), 0 0 24px var(--a1-electric-600 / 0.45);
+}
+
+.a1-glass {
+  background: var(--a1-glass-bg);
+  border: 1px solid var(--a1-glass-border);
+  backdrop-filter: blur(var(--a1-glass-blur)) saturate(var(--a1-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--a1-glass-blur)) saturate(var(--a1-glass-saturate));
+}
+
+.a1-glow {
+  box-shadow: var(--a1-shadow-glow);
+}

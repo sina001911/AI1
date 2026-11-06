@@ -181,7 +181,11 @@ const titleKeyMap = {
   paintings: 'title.paintings',
   settings: 'title.settings',
   translate: 'title.translate',
-  agents: 'agent.sidebar_title'
+  agents: 'agent.sidebar_title',
+  workflows: 'title.workflows',
+  creative_lab: 'title.creative_lab',
+  explore: 'title.explore',
+  personalization: 'title.personalization'
 } as const
 
 export const getTitleLabelKey = (key: string): string => {
