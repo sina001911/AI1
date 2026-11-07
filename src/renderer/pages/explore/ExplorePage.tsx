@@ -1,16 +1,60 @@
 import { BookOpen, Compass, Library, Search } from 'lucide-react'
 import type { FC } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { Input } from '@cherrystudio/ui'
+import { Button, Input } from '@cherrystudio/ui'
 import { loggerService } from '@logger'
 import { Navbar } from '@renderer/components/Navbar'
 import Scrollbar from '@renderer/components/Scrollbar'
+import { useKnowledgeBases } from '@renderer/hooks/useKnowledgeBase'
+import { useTeamApi } from '@renderer/pages/studio/useTeamApi'
+import type { TeamEntity } from '@shared/ipc/schemas/ai'
 
 const logger = loggerService.withContext('ExplorePage')
 
 export const ExplorePage: FC = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const api = useTeamApi()
+  const { bases, isLoading: knowledgeLoading } = useKnowledgeBases({ enabled: true })
+  const [blueprints, setBlueprints] = useState<TeamEntity[]>([])
+  const [blueprintsLoading, setBlueprintsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setBlueprintsLoading(true)
+    void api
+      .listTeams()
+      .then((teams) => {
+        if (cancelled) return
+        setBlueprints(teams ?? [])
+      })
+      .catch(() => {
+        if (cancelled) return
+        setBlueprints([])
+      })
+      .finally(() => {
+        if (!cancelled) setBlueprintsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api])
+
+  const hasBlueprints = blueprints.length > 0
+  const hasPacks = !knowledgeLoading && (bases?.length ?? 0) > 0
+
+  const handleBlueprints = () => {
+    logger.info('Explore: open team blueprints', { count: blueprints.length })
+    navigate({ to: '/app/studio' })
+  }
+
+  const handlePacks = () => {
+    logger.info('Explore: open knowledge packs', { count: bases?.length ?? 0 })
+    navigate({ to: '/app/knowledge' })
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -36,29 +80,73 @@ export const ExplorePage: FC = () => {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              { icon: Library, title: 'Team blueprints', description: 'Pre-assembled multi-agent teams for common domains.' },
-              { icon: BookOpen, title: 'Knowledge packs', description: 'Curated corpora ready to attach to a project workspace.' }
-            ].map(({ icon: Icon, title, description }) => (
-              <button
-                key={title}
-                type="button"
-                className="group flex flex-col gap-3 rounded-xl border border-border-subtle bg-card p-4 text-left transition-colors hover:bg-accent/40"
-                onClick={() => logger.info('Explore item selected', { title })}
-              >
-                <span className="flex size-9 items-center justify-center rounded-lg border border-border-subtle bg-accent/30">
-                  <Icon className="size-4 text-primary" />
-                </span>
-                <span className="text-sm font-medium text-foreground">{title}</span>
-                <span className="text-xs text-muted-foreground">{description}</span>
-              </button>
-            ))}
+            <button
+              type="button"
+              className="group flex flex-col gap-3 rounded-xl border border-border-subtle bg-card p-4 text-left transition-colors hover:bg-accent/40"
+              onClick={handleBlueprints}
+            >
+              <span className="flex size-9 items-center justify-center rounded-lg border border-border-subtle bg-accent/30">
+                <Library className="size-4 text-primary" />
+              </span>
+              <span className="text-sm font-medium text-foreground">Team blueprints</span>
+              <span className="text-xs text-muted-foreground">
+                {blueprintsLoading
+                  ? 'Loading…'
+                  : hasBlueprints
+                    ? `${blueprints.length} saved team${blueprints.length === 1 ? '' : 's'} ready to run.`
+                    : 'Pre-assembled multi-agent teams for common domains.'}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="group flex flex-col gap-3 rounded-xl border border-border-subtle bg-card p-4 text-left transition-colors hover:bg-accent/40"
+              onClick={handlePacks}
+            >
+              <span className="flex size-9 items-center justify-center rounded-lg border border-border-subtle bg-accent/30">
+                <BookOpen className="size-4 text-primary" />
+              </span>
+              <span className="text-sm font-medium text-foreground">Knowledge packs</span>
+              <span className="text-xs text-muted-foreground">
+                {knowledgeLoading
+                  ? 'Loading…'
+                  : hasPacks
+                    ? `${bases?.length ?? 0} knowledge base${(bases?.length ?? 0) === 1 ? '' : 's'} ready to attach.`
+                    : 'Curated corpora ready to attach to a project workspace.'}
+              </span>
+            </button>
           </div>
 
-          <div className="rounded-xl border border-dashed border-border-subtle p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              The explore catalog is empty. Add a knowledge base or team blueprint from the Collaborative Studio to seed it.
-            </p>
+          <div className="rounded-xl border border-border-subtle p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Saved team blueprints</h2>
+                <p className="text-xs text-muted-foreground">
+                  Teams you have built in the Collaborative Studio. Pick one to open it and start a run.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleBlueprints}>
+                Open studio
+              </Button>
+            </div>
+            {hasBlueprints ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {blueprints.map((team: TeamEntity) => (
+                  <div key={team.id} className="rounded-lg border border-border-subtle bg-card p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">{team.name}</span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">{team.strategy}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {team.description || 'No description yet.'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">
+                The explore catalog is empty. Add a knowledge base or team blueprint from the Collaborative Studio to seed it.
+              </p>
+            )}
           </div>
         </div>
       </Scrollbar>
