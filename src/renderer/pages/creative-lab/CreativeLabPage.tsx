@@ -1,5 +1,4 @@
 import { ImagePlus, Video, Wand2 } from 'lucide-react'
-import type { FC } from 'react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,14 +6,28 @@ import { Button } from '@cherrystudio/ui'
 import { loggerService } from '@logger'
 import { Navbar } from '@renderer/components/Navbar'
 import Scrollbar from '@renderer/components/Scrollbar'
+import { openSettingsTab } from '@renderer/services/mainWindowNavigation'
+import { useModels } from '@renderer/hooks/useModel'
+import { useProviders } from '@renderer/hooks/useProvider'
+import { isVideoGenerationModel } from '@shared/utils/model'
+
+import { VideoGenerationPanel } from './VideoGenerationPanel'
 
 const logger = loggerService.withContext('CreativeLabPage')
 
 type CreativeTab = 'image' | 'video'
 
-export const CreativeLabPage: FC = () => {
+export const CreativeLabPage = () => {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = FC.useState<CreativeTab>('image')
+  const [activeTab, setActiveTab] = useState<CreativeTab>('image')
+  const { models, isLoading: modelsLoading } = useModels()
+  const { providers, isLoading: providersLoading } = useProviders()
+
+  const videoModels = models.filter((model) => isVideoGenerationModel(model))
+  const hasVideoModels = videoModels.length > 0
+  const hasConfiguredVideoProvider = videoModels.some(
+    (model) => providers.some((provider) => provider.id === model.providerId && provider.isEnabled)
+  )
 
   return (
     <div className="flex h-full flex-col">
@@ -28,7 +41,7 @@ export const CreativeLabPage: FC = () => {
               onClick={() => setActiveTab('image')}
             >
               <ImagePlus className="size-4" />
-              Image generation
+              {t('creative_lab.tab_image')}
             </Button>
             <Button
               variant={activeTab === 'video' ? 'secondary' : 'ghost'}
@@ -36,7 +49,7 @@ export const CreativeLabPage: FC = () => {
               onClick={() => setActiveTab('video')}
             >
               <Video className="size-4" />
-              Video generation
+              {t('creative_lab.tab_video')}
             </Button>
           </div>
 
@@ -47,16 +60,12 @@ export const CreativeLabPage: FC = () => {
                   <Wand2 className="size-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-foreground">Image generation</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Describe the scene you want and pick a compatible image model from your configured providers.
-                  </p>
+                  <h2 className="text-base font-semibold text-foreground">{t('creative_lab.image_title')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('creative_lab.image_desc')}</p>
                 </div>
               </div>
               <div className="rounded-xl border border-border-subtle bg-card p-6">
-                <p className="text-sm text-muted-foreground">
-                  Prompt composer and model picker live in the Paintings workspace. Open it from the sidebar to generate images here.
-                </p>
+                <p className="text-sm text-muted-foreground">{t('creative_lab.image_hint')}</p>
                 <Button
                   className="mt-4 gap-2"
                   onClick={() => {
@@ -66,36 +75,18 @@ export const CreativeLabPage: FC = () => {
                     })().catch((error) => logger.error('Navigate to paintings failed', error))
                   }}
                 >
-                  Open image studio
+                  {t('creative_lab.open_image_studio')}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl border border-border-subtle bg-accent/40">
-                  <Video className="size-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">Video generation</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Turn a prompt or image into a short clip with a compatible video model.
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border-subtle bg-card p-6">
-                <p className="text-sm text-muted-foreground">
-                  Video generation requires a configured compatible provider. Once you add one, the prompt composer and job monitor appear here.
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-4 gap-2"
-                  onClick={() => logger.info('Video generation provider requested')}
-                >
-                  Configure video provider
-                </Button>
-              </div>
-            </div>
+            <VideoGenerationPanel
+              models={videoModels}
+              providers={providers}
+              isLoading={modelsLoading || providersLoading}
+              hasConfiguredProvider={hasConfiguredVideoProvider}
+              onConfigureProvider={() => openSettingsTab('/settings/provider')}
+            />
           )}
         </div>
       </Scrollbar>

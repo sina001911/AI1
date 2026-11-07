@@ -1030,6 +1030,16 @@ export class AiService extends BaseService {
     )
   }
 
+  /**
+   * Run a video request under an abort registry entry keyed by the renderer-supplied
+   * `requestId`, so `ai.video.abort` can cancel it. Mirrors `runImageRequest`.
+   */
+  async runVideoRequest(requestId: string, payload: AiVideoRequest): Promise<AiVideoResult> {
+    return this.runWithAbort(requestId, (signal) =>
+      this.generateVideo({ ...payload, requestOptions: { ...payload.requestOptions, signal } })
+    )
+  }
+
   async generateImage(request: AsInProcess<AiImageRequest>): Promise<AiImageResult> {
     logger.info('generateImage started', { assistantId: request.assistantId, uniqueModelId: request.uniqueModelId })
     const signal = request.requestOptions?.signal

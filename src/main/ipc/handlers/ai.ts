@@ -126,6 +126,11 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
   'ai.image.abort': async ({ requestId }) => {
     application.get('AiService').abortRequest(requestId)
   },
+  'ai.video.generate': ({ requestId, payload }) =>
+    exposeAiError('ai.video.generate', () => application.get('AiService').runVideoRequest(requestId, payload)),
+  'ai.video.abort': async ({ requestId }) => {
+    application.get('AiService').abortRequest(requestId)
+  },
 
   // ── Provider model catalog & reachability probe. ──
   'ai.provider.model.list': (request) =>

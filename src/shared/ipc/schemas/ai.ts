@@ -300,6 +300,21 @@ const aiImagePayloadSchema = z.strictObject({
 // Keep the public output named so declaration emit does not expose FileEntry's private path brand.
 const aiImageOutputSchema: z.ZodType<{ files: FileEntry[] }> = z.object({ files: z.array(FileEntrySchema) })
 
+/** Clone-safe subset of `AiVideoRequest` — the wire shape the Creative Lab sends. */
+const aiVideoPayloadSchema = z.strictObject({
+  ...aiRequestShape,
+  prompt: z.string().trim().min(1).max(2000),
+  /** Optional input image FileEntry ids for image-to-video generation. */
+  inputImageIds: z.array(z.string().uuid()).optional(),
+  /** Per-attempt provider submit timeout (ms); omitted uses the transport default. */
+  requestTimeoutMs: z.number().int().min(10_000).optional(),
+  /** Required: the calling business feature decides the cleanup intent for the generated OUTPUT entries. */
+  cleanupPolicy: CleanupPolicySchema
+})
+
+// Reuse the image output shape: video generation also returns persisted file entries.
+const aiVideoOutputSchema: z.ZodType<{ files: FileEntry[] }> = z.object({ files: z.array(FileEntrySchema) })
+
 const aiStreamRegenerateShape = {
   trigger: z.literal('regenerate-message'),
   parentAnchorId: z.string().min(1),
@@ -355,6 +370,18 @@ export const aiRequestSchemas = {
   }),
   'ai.image.abort': defineRoute({
     // Was a one-way `ipcOn`; per the migration guide a one-off becomes a `void` request.
+    input: z.strictObject({ requestId: z.string().min(1) }),
+    output: z.void()
+  }),
+  'ai.video.generate': defineRoute({
+    // Mirrors `ai.image.generate`: the renderer supplies a `requestId` that pairs
+    // with `ai.video.abort` (the abort registry lives in AiService). Video
+    // generation is a first-class modality — it was a main-only tool before this
+    // route exposed it to the Creative Lab.
+    input: z.strictObject({ requestId: z.string().min(1), payload: aiVideoPayloadSchema }),
+    output: aiVideoOutputSchema
+  }),
+  'ai.video.abort': defineRoute({
     input: z.strictObject({ requestId: z.string().min(1) }),
     output: z.void()
   }),
