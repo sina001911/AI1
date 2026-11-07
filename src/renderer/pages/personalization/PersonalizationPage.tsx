@@ -6,11 +6,54 @@ import { Button } from '@cherrystudio/ui'
 import { loggerService } from '@logger'
 import { Navbar } from '@renderer/components/Navbar'
 import Scrollbar from '@renderer/components/Scrollbar'
+import { usePreference } from '@data/hooks/usePreference'
+import { useTheme } from '@renderer/hooks/useTheme'
+import { i18n } from '@renderer/i18n'
+import { ThemeMode } from '@shared/data/preference/preferenceTypes'
 
 const logger = loggerService.withContext('PersonalizationPage')
 
+const THEME_OPTIONS: { value: ThemeMode; label: string; swatch: string }[] = [
+  { value: ThemeMode.light, label: 'Light', swatch: 'from-slate-200 to-slate-100' },
+  { value: ThemeMode.dark, label: 'Dark', swatch: 'from-slate-900 to-slate-800' },
+  { value: ThemeMode.system, label: 'System', swatch: 'from-primary/70 to-primary/30' }
+]
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'en-US', label: 'English' },
+  { value: 'zh-CN', label: '中文' },
+  { value: 'fa-IR', label: 'فارسی' },
+  { value: 'de-DE', label: 'Deutsch' },
+  { value: 'es-ES', label: 'Español' },
+  { value: 'fr-FR', label: 'Français' },
+  { value: 'it-IT', label: 'Italiano' },
+  { value: 'ja-JP', label: '日本語' },
+  { value: 'pt-PT', label: 'Português' },
+  { value: 'ru-RU', label: 'Русский' },
+  { value: 'tr-TR', label: 'Türkçe' },
+  { value: 'vi-VN', label: 'Tiếng Việt' },
+  { value: 'th-TH', label: 'ไทย' },
+  { value: 'el-GR', label: 'Ελληνικά' },
+  { value: 'ro-RO', label: 'Română' },
+  { value: 'zh-TW', label: '繁體中文' }
+]
+
 export const PersonalizationPage: FC = () => {
   const { t } = useTranslation()
+  const [settedTheme, setSettedTheme] = usePreference('ui.theme_mode')
+  const [language, setLanguage] = usePreference('app.language')
+  const { setTheme } = useTheme()
+
+  const handleTheme = (mode: ThemeMode) => {
+    logger.info('Theme selected', { mode })
+    setTheme(mode)
+  }
+
+  const handleLanguage = (value: string) => {
+    logger.info('Language selected', { value })
+    void setLanguage(value)
+    void i18n.changeLanguage(value)
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -35,15 +78,17 @@ export const PersonalizationPage: FC = () => {
               <h2 className="text-sm font-medium text-foreground">Appearance</h2>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              {['Light', 'Dark', 'System'].map((mode) => (
+              {THEME_OPTIONS.map((mode) => (
                 <button
-                  key={mode}
+                  key={mode.value}
                   type="button"
-                  className="group flex flex-col gap-3 rounded-xl border border-border-subtle bg-card p-4 text-left transition-colors hover:bg-accent/40"
-                  onClick={() => logger.info('Theme selected', { mode })}
+                  className={`group flex flex-col gap-3 rounded-xl border p-4 text-left transition-colors hover:bg-accent/40 ${
+                    settedTheme === mode.value ? 'border-primary bg-primary/5' : 'border-border-subtle bg-card'
+                  }`}
+                  onClick={() => handleTheme(mode.value)}
                 >
-                  <span className="size-8 rounded-lg border border-border-subtle bg-gradient-to-br from-primary/60 to-primary/20" />
-                  <span className="text-sm font-medium text-foreground">{mode}</span>
+                  <span className={`size-8 rounded-lg border border-border-subtle bg-gradient-to-br ${mode.swatch}`} />
+                  <span className="text-sm font-medium text-foreground">{mode.label}</span>
                 </button>
               ))}
             </div>
@@ -58,9 +103,25 @@ export const PersonalizationPage: FC = () => {
               <p className="text-sm text-muted-foreground">
                 AI1 ships with bilingual Persian + English support. Switch the active locale from the language switcher in the sidebar.
               </p>
-              <Button variant="outline" className="mt-3 gap-2" onClick={() => logger.info('Language switcher requested')}>
-                Open language settings
-              </Button>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {LANGUAGE_OPTIONS.map((lang) => (
+                  <button
+                    key={lang.value}
+                    type="button"
+                    className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                      language === lang.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-accent/50 text-muted-foreground hover:bg-accent'
+                    }`}
+                    onClick={() => handleLanguage(lang.value)}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Active locale: {language || 'system-default'}
+              </p>
             </div>
           </section>
 
