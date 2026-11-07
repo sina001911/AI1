@@ -61,7 +61,7 @@ export function matchScore(task: Task, _specialist: Specialist, capabilities: Ag
     { pattern: /\b(image|picture|photo|visual|illustration|drawing)\b/, feature: 'image_generation' },
     { pattern: /\b(video|clip|footage|animation|storyboard)\b/, feature: 'video_generation' },
     { pattern: /\b(data|statistics|csv|chart|metric|analytics)\b/, feature: 'data_analysis' },
-    { pattern: /\b(review|critique|audit|verify|quality)\b/, feature: 'code' },
+    { pattern: /\b(review|critique|audit|verify|quality)\b/, feature: 'review' },
     { pattern: /\b(search|browse|web)\b/, feature: 'web_search' },
     { pattern: /\b(read|file|document)\b/, feature: 'file_read' },
     { pattern: /\b(write|edit|create|generate)\b/, feature: 'file_write' },

@@ -209,7 +209,7 @@ export function defaultCapabilities(role: SpecialistRole): Omit<AgentCapabilitie
           { name: 'code.test', description: 'Run test suites', permission: 'allow', cost: 'moderate' },
           { name: 'code.review', description: 'Review code changes', permission: 'allow', cost: 'cheap' }
         ],
-        features: ['code', 'file_read', 'file_write', 'shell_execute', 'data_analysis'],
+        features: ['code', 'file_read', 'file_write', 'shell_execute'],
         throughputHint: 6
       }
     case 'research':
@@ -266,7 +266,7 @@ export function defaultCapabilities(role: SpecialistRole): Omit<AgentCapabilitie
           { name: 'code.test', description: 'Run tests against work under review', permission: 'allow', cost: 'moderate' },
           { name: 'web.fetch', description: 'Verify claims against sources', permission: 'allow', cost: 'moderate' }
         ],
-        features: ['file_read', 'web_fetch', 'text', 'code'],
+        features: ['file_read', 'web_fetch', 'text', 'code', 'review'],
         supportsVision: true,
         throughputHint: 5
       }

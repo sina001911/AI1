@@ -95,7 +95,7 @@ describe('assignTasks', () => {
     expect(assigned.tasks[0].assignedTo).toBe(coder.id)
   })
 
-  it('routes research tasks to the reviewer when no research specialist', () => {
+  it('routes a review task to the reviewer specialist', () => {
     const team = buildTeam()
     const plan = buildPlan(team, 'o', '- review the architecture')
     const assigned = assignTasks(plan, team)

@@ -1,5 +1,6 @@
 import { createId, now } from './team'
-import { type ExecutionPlan, type Specialist, type Task, type TaskGate, type Team } from './types'
+import { pickSpecialistByCapability } from './capabilities'
+import { type AgentCapabilities, type ExecutionPlan, type Specialist, type Task, type TaskGate, type Team } from './types'
 
 export function buildPlan(team: Team, objective: string, raw: string): ExecutionPlan {
   const tasks = parseTaskList(raw, team.id)
@@ -66,39 +67,16 @@ function parseTaskList(raw: string, teamId: string): Task[] {
 export function assignTasks(plan: ExecutionPlan, team: Team): ExecutionPlan {
   const enabled = team.specialists.filter((s) => s.enabled)
   if (enabled.length === 0) throw new Error('Team has no enabled specialists')
-  const byRole = new Map<string, Specialist>()
-  for (const s of enabled) {
-    if (!byRole.has(s.role)) byRole.set(s.role, s)
-  }
-  const fallback = enabled[0]
+  // Route every task through the shared capability engine instead of a
+  // hand-rolled keyword map, so the coding/research/image/video/data
+  // domains are all scored by the same feature-overlap logic.
+  const capabilityCache = new Map<string, AgentCapabilities>()
   const assigned = plan.tasks.map((t) => {
-    const specialist = pickSpecialist(t, byRole, fallback)
+    const specialist = pickSpecialistByCapability(t, enabled, capabilityCache)
+    if (!specialist) throw new Error(`No specialist available for task "${t.title}"`)
     return { ...t, assignedTo: specialist.id }
   })
   return { ...plan, tasks: assigned }
-}
-
-function pickSpecialist(task: Task, byRole: Map<string, Specialist>, fallback: Specialist): Specialist {
-  const text = `${task.title} ${task.description}`.toLowerCase()
-  if (/\b(code|implement|write|build|refactor|debug|test|function|component|api|database|sql)\b/.test(text)) {
-    return byRole.get('coding') ?? fallback
-  }
-  if (/\b(research|analyze|investigate|survey|review|summarize|compare|evaluate)\b/.test(text)) {
-    return byRole.get('research') ?? byRole.get('reviewer') ?? fallback
-  }
-  if (/\b(image|picture|photo|visual|design|illustration)\b/.test(text)) {
-    return byRole.get('image') ?? fallback
-  }
-  if (/\b(video|clip|animation|footage)\b/.test(text)) {
-    return byRole.get('video') ?? fallback
-  }
-  if (/\b(data|statistics|csv|chart|metric|analytics|report)\b/.test(text)) {
-    return byRole.get('data-analyst') ?? fallback
-  }
-  if (/\b(review|critique|feedback|audit|verify|check)\b/.test(text)) {
-    return byRole.get('reviewer') ?? fallback
-  }
-  return fallback
 }
 
 export function validatePlan(plan: ExecutionPlan, team: Team): string[] {

@@ -345,6 +345,7 @@ export const AGENT_FEATURES = [
   'file_write',
   'shell_execute',
   'data_analysis',
+  'review',
   'ocr',
   'translation',
   'vision'
