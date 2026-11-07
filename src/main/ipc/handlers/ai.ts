@@ -348,5 +348,8 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
   'agent.team.run.event.list': async ({ runId }) => application.get('AgentTeamService').listRunEvents(runId),
   'agent.team.run.approve_task': async ({ runId, taskId, approved, reason }) => ({
     ok: application.get('AgentTeamService').respondTaskApproval(runId, taskId, approved, reason)
+  }),
+  'agent.team.run.approve_tool': async ({ runId, toolName, specialistId, approved }) => ({
+    ok: application.get('AgentTeamService').respondToolApproval(runId, toolName, specialistId, approved)
   })
 }

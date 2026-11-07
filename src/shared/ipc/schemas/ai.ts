@@ -723,6 +723,15 @@ export const aiRequestSchemas = {
       reason: z.string().optional()
     }),
     output: z.object({ ok: z.boolean() })
+  }),
+  'agent.team.run.approve_tool': defineRoute({
+    input: z.strictObject({
+      runId: z.string().uuid(),
+      toolName: z.string().min(1),
+      specialistId: z.string().uuid(),
+      approved: z.boolean()
+    }),
+    output: z.object({ ok: z.boolean() })
   })
 }
 
@@ -769,6 +778,19 @@ export type AiEventSchemas = {
     gate: string
     approved: boolean
     reason?: string
+  }
+  // ── Tool approval events (M→R broadcast) ──
+  'agent.team.tool.approval_requested': {
+    runId: string
+    toolName: string
+    specialistId: string
+    args: unknown
+  }
+  'agent.team.tool.approval_resolved': {
+    runId: string
+    toolName: string
+    specialistId: string
+    approved: boolean
   }
   'agent.team.context.updated': { runId: string; delta: string; authorTaskId: string }
   'agent.team.task.message.sent': {

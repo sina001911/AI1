@@ -25,18 +25,28 @@ export function buildCapabilities(
 }
 
 /**
- * Check whether a specialist is permitted to invoke a tool.
- * `*` wildcard matches any tool name.
+ * Resolve the effective permission for one tool on one specialist.
+ * `*` wildcard matches any tool name. Returns `'allow'` / `'deny'` /
+ * `'prompt'`; an unmapped tool resolves to `'deny'` so an unlisted tool can
+ * never be invoked by accident.
  */
-export function canInvokeTool(specialist: Specialist, toolName: string): boolean {
+export function canInvokeTool(
+  specialist: Specialist,
+  toolName: string
+): 'allow' | 'deny' | 'prompt' {
   const perms = specialist.toolPermissions
-  const wildcard = perms['*']
-  if (wildcard === 'allow') return true
-  if (wildcard === 'deny') return false
+  // A specific entry wins over the `*` wildcard: `defaultToolPermissions`
+  // builds `{ 'file.write': 'prompt', ...{ '*': 'allow' } }`, so the
+  // per-tool rule must be consulted first or the wildcard would swallow it.
   const direct = perms[toolName]
-  if (direct === 'allow') return true
-  if (direct === 'deny') return false
-  return false
+  if (direct === 'allow') return 'allow'
+  if (direct === 'deny') return 'deny'
+  if (direct === 'prompt') return 'prompt'
+  const wildcard = perms['*']
+  if (wildcard === 'allow') return 'allow'
+  if (wildcard === 'deny') return 'deny'
+  if (wildcard === 'prompt') return 'prompt'
+  return 'deny'
 }
 
 /**

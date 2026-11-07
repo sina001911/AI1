@@ -50,15 +50,27 @@ describe('canInvokeTool', () => {
   const researcher = team.specialists.find((s) => s.role === 'research')!
 
   it('coding specialist can read files', () => {
-    expect(canInvokeTool(coder, 'file.read')).toBe(true)
+    expect(canInvokeTool(coder, 'file.read')).toBe('allow')
   })
-  it('researcher cannot shell execute (prompt only via wildcard)', () => {
+  it('researcher can shell execute (wildcard allow)', () => {
     // researcher has '*': 'allow' so everything is allowed
-    expect(canInvokeTool(researcher, 'shell.execute')).toBe(true)
+    expect(canInvokeTool(researcher, 'shell.execute')).toBe('allow')
   })
   it('deny overrides allow', () => {
     const denied = { ...coder, toolPermissions: { '*': 'deny' } as ToolPermissionMap }
-    expect(canInvokeTool(denied, 'file.read')).toBe(false)
+    expect(canInvokeTool(denied, 'file.read')).toBe('deny')
+  })
+  it('prompt is distinguishable from allow/deny', () => {
+    const prompted = { ...coder, toolPermissions: { '*': 'prompt' } as ToolPermissionMap }
+    expect(canInvokeTool(prompted, 'file.read')).toBe('prompt')
+  })
+  it('an unmapped tool is denied when there is no wildcard allow', () => {
+    const scoped = { ...coder, toolPermissions: { 'file.read': 'allow' } as ToolPermissionMap }
+    expect(canInvokeTool(scoped, 'does.not.exist')).toBe('deny')
+    expect(canInvokeTool(scoped, 'file.read')).toBe('allow')
+  })
+  it('a wildcard allow covers unmapped tools', () => {
+    expect(canInvokeTool(coder, 'does.not.exist')).toBe('allow')
   })
 })
 

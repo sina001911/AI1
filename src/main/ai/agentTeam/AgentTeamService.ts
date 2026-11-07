@@ -401,6 +401,11 @@ export class AgentTeamService extends BaseService {
     string,
     { resolve: (decision: { approved: boolean; reason?: string }) => void }
   >()
+  /** Pending tool-approval decisions, keyed by `runId:toolName:specialistId`. */
+  private readonly pendingToolApprovals = new Map<
+    string,
+    { resolve: (approved: boolean) => void }
+  >()
 
   async onReady(): Promise<void> {
     logger.info('AgentTeamService ready')
@@ -642,7 +647,10 @@ export class AgentTeamService extends BaseService {
       runId,
       plan,
       team,
-      executeTask: executeSpecialistTask,
+      executeTask: (task, specialist, signal, onDelta, ctx) =>
+        executeSpecialistTask(task, specialist, signal, onDelta, ctx, (input) =>
+          this.requestToolApproval(runId, input, abortController.signal)
+        ),
       synthesize: this.createSynthesize(team, objective),
       onEvent: (event) => this.handleRunEvent(event),
       signal: abortController.signal,
@@ -712,6 +720,69 @@ export class AgentTeamService extends BaseService {
         }
       })
     })
+  }
+
+  /**
+   * Gate callback: parks the run until the renderer answers
+   * `agent.team.run.approve_tool`. A `prompt` tool only reaches the model
+   * when this is wired, so the scheduler can never fire an unapproved tool.
+   */
+  private requestToolApproval(
+    runId: string,
+    input: { toolName: string; args: unknown; specialistId: string },
+    signal: AbortSignal
+  ): Promise<boolean> {
+    const key = `${runId}:${input.toolName}:${input.specialistId}`
+    this.broadcastIpc('agent.team.tool.approval_requested', {
+      runId,
+      toolName: input.toolName,
+      specialistId: input.specialistId,
+      args: input.args
+    })
+    teamRepository.appendEvent({
+      runId,
+      type: 'tool_approval_requested',
+      payload: { runId, toolName: input.toolName, specialistId: input.specialistId, args: input.args },
+      createdAt: Date.now()
+    })
+    return new Promise<boolean>((resolve, reject) => {
+      if (signal.aborted) {
+        this.pendingToolApprovals.delete(key)
+        reject(new Error('Run cancelled during tool approval'))
+        return
+      }
+      const onAbort = () => {
+        this.pendingToolApprovals.delete(key)
+        reject(new Error('Run cancelled during tool approval'))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+      this.pendingToolApprovals.set(key, {
+        resolve: (approved) => {
+          signal.removeEventListener('abort', onAbort)
+          resolve(approved)
+        }
+      })
+    })
+  }
+
+  /**
+   * Answer a pending tool-approval request. Called from
+   * `agent.team.run.approve_tool` IPC. Returns `false` when no approval is
+   * pending (already decided, or the run is gone) so the renderer can report
+   * a clean "nothing to approve" instead of a thrown error.
+   */
+  respondToolApproval(
+    runId: string,
+    toolName: string,
+    specialistId: string,
+    approved: boolean
+  ): boolean {
+    const key = `${runId}:${toolName}:${specialistId}`
+    const pending = this.pendingToolApprovals.get(key)
+    if (!pending) return false
+    this.pendingToolApprovals.delete(key)
+    pending.resolve(approved)
+    return true
   }
 
   /**
