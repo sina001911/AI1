@@ -230,7 +230,9 @@ These changes are in progress and not yet committed:
 
 ### 🟢 B1: RESOLVED — `pnpm build` now passes with 0 typecheck errors (2026-11-09)
 
-The 17 pre-existing typecheck errors that blocked `pnpm build` are **fixed**. Verified end to end: `pnpm typecheck` → 0 errors, `pnpm build` → exit 0.
+The 17 pre-existing typecheck errors that blocked `pnpm build` are **fixed**, plus the pre-existing `naming/path-case` violation on the `creative-lab` directory. Verified end to end: `pnpm typecheck` → 0 errors, `pnpm build` → exit 0.
+
+**Also fixed in this commit:** renamed `src/renderer/pages/creative-lab/` → `creativeLab/` (the directory segment violated `naming/path-case` since `c3e6fcf02`; the route file `routes/app/creative-lab.tsx` stays kebab-case per the routes zone).
 
 | Error | File | Fix |
 |---|---|---|
@@ -261,8 +263,8 @@ None. The codebase is otherwise in a healthy state with real implementations thr
 
 ## Key Risks
 
-1. **3 pre-existing test failures** in `agents/` module — unrelated to agent-team but block a clean `pnpm test` gate if left unaddressed long-term.
-2. **Build verification** — hasn't been run locally in this session; `pnpm build` should be the first gate before any delivery work.
+1. **3 pre-existing test failures** in `agents/` module — confirmed on clean `main` (Windows path-separator mismatch: `/agent-data/a1` vs `\agent-data\a1`); unrelated to agent-team and out of scope for this commit. Block a clean `pnpm test` gate if left unaddressed long-term.
+2. ~~**Build verification**~~ — RESOLVED: `pnpm build` passes with exit 0 (verified 2026-11-09).
 3. **Paintings page completeness** — structure exists but unclear if image generation is fully connected to the real toolchain.
 4. **Data-analysis toolkit** — `data-analyst` role defined but no dedicated CSV/chart/tools yet.
 
