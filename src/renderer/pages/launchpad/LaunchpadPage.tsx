@@ -8,13 +8,17 @@ import { usePreference } from '@data/hooks/usePreference'
 import agentsIcon from '@renderer/assets/images/apps/launchpad-agents.svg'
 import assistantsIcon from '@renderer/assets/images/apps/launchpad-assistants.svg'
 import codeToolsIcon from '@renderer/assets/images/apps/launchpad-code-tools.svg'
+import creativeLabIcon from '@renderer/assets/images/apps/launchpad-creative-lab.svg'
+import exploreIcon from '@renderer/assets/images/apps/launchpad-explore.svg'
 import filesIcon from '@renderer/assets/images/apps/launchpad-files.svg'
 import knowledgeIcon from '@renderer/assets/images/apps/launchpad-knowledge.svg'
 import miniAppIcon from '@renderer/assets/images/apps/launchpad-mini-app.svg'
 import notesIcon from '@renderer/assets/images/apps/launchpad-notes.svg'
 import paintingsIcon from '@renderer/assets/images/apps/launchpad-paintings.svg'
+import personalizationIcon from '@renderer/assets/images/apps/launchpad-personalization.svg'
 import studioIcon from '@renderer/assets/images/apps/launchpad-studio.svg'
 import translateIcon from '@renderer/assets/images/apps/launchpad-translate.svg'
+import workflowsIcon from '@renderer/assets/images/apps/launchpad-workflows.svg'
 import { CommandContextMenu, type CommandContextMenuExtraItem } from '@renderer/components/command'
 import SidebarShortcutIcon from '@renderer/components/icons/SidebarShortcutIcon'
 import App from '@renderer/components/MiniApp/MiniApp'
@@ -49,7 +53,11 @@ const APP_ICON_SOURCES: Record<SidebarAppId, string> = {
   files: filesIcon,
   code_tools: codeToolsIcon,
   notes: notesIcon,
-  studio: studioIcon
+  studio: studioIcon,
+  workflows: workflowsIcon,
+  creative_lab: creativeLabIcon,
+  explore: exploreIcon,
+  personalization: personalizationIcon
 }
 
 export default function LaunchpadPage() {

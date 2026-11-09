@@ -15,7 +15,11 @@ import {
   NotepadText,
   Package,
   Palette,
-  Users
+  Rocket,
+  Settings,
+  Sparkles,
+  Users,
+  Wrench
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -41,7 +45,11 @@ export const SIDEBAR_ICON_COMPONENTS = {
   files: Folder,
   code_tools: CodeMateIcon,
   notes: NotepadText,
-  studio: Users
+  studio: Users,
+  workflows: Rocket,
+  creative_lab: Sparkles,
+  explore: Wrench,
+  personalization: Settings
 } satisfies Record<SidebarAppId, SidebarIconComponent>
 
 const RESOURCE_ICON_COMPONENTS = {
@@ -54,6 +62,7 @@ const RESOURCE_ICON_COMPONENTS = {
 
 const NAVIGATION_ICON_COMPONENTS = { ...SIDEBAR_ICON_COMPONENTS, ...RESOURCE_ICON_COMPONENTS }
 type SidebarGlyph = keyof typeof NAVIGATION_ICON_COMPONENTS
+type SidebarAppGlyph = SidebarGlyph | SidebarAppId
 
 // Interior details are transparent cutouts so filled glyphs work on translucent sidebars too.
 const FILLED_PATHS: Partial<Record<SidebarGlyph, string>> = {
@@ -83,7 +92,7 @@ export function SidebarIcon({
   icon,
   active = false,
   ...props
-}: LucideProps & { icon: SidebarGlyph; active?: boolean }) {
+}: LucideProps & { icon: SidebarAppGlyph; active?: boolean }) {
   const Outline = NAVIGATION_ICON_COMPONENTS[icon]
   if (!active) return <Outline {...props} />
   const filledPath = FILLED_PATHS[icon]

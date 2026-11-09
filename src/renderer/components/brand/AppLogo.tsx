@@ -9,15 +9,8 @@ import logoA1 from '@renderer/assets/logo-a1.svg'
  * underlying `<img>` so callers can size it with the same token scale they use
  * for icons and text.
  */
-export function AppLogo({ className, alt = 'AI1', ...props }: SVGProps<SVGSVGElement>) {
-  return (
-    <img
-      src={logoA1}
-      alt={alt}
-      className={className}
-      {...(props as unknown as Record<string, string>)}
-    />
-  )
+export function AppLogo({ className, alt = 'AI1', ...props }: SVGProps<SVGSVGElement> & { alt?: string }) {
+  return <img src={logoA1} alt={alt} className={className} {...(props as unknown as Record<string, string>)} />
 }
 
 export default AppLogo

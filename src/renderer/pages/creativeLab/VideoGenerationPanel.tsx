@@ -1,11 +1,13 @@
 import { Loader2, Video, X } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button, Select, SelectItem, Textarea } from '@cherrystudio/ui'
 import { loggerService } from '@logger'
 import { getProviderDisplayName } from '@renderer/hooks/useProvider'
-import type { Model, Provider } from '@shared/data/types/model'
+import type { Model } from '@shared/data/types/model'
+import { createUniqueModelId, type UniqueModelId } from '@shared/data/types/model'
+import type { Provider } from '@shared/data/types/provider'
 
 const logger = loggerService.withContext('VideoGenerationPanel')
 
@@ -28,7 +30,8 @@ export function VideoGenerationPanel({
 }: VideoGenerationPanelProps) {
   const { t } = useTranslation()
   const [prompt, setPrompt] = useState('')
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
+  const [selectedModelId, setSelectedModelId] = useState<UniqueModelId | undefined>(undefined)
+  const handleModelChange = useCallback((value: string) => setSelectedModelId(value as UniqueModelId), [])
   const [state, setState] = useState<GenerationState>('idle')
   const [error, setError] = useState<string | undefined>(undefined)
   const [resultUrl, setResultUrl] = useState<string | undefined>(undefined)
@@ -68,7 +71,7 @@ export function VideoGenerationPanel({
       }
       setState('error')
       setError(err instanceof Error ? err.message : t('errors.unknown'))
-      logger.error('Video generation failed', err)
+      logger.error('Video generation failed', err instanceof Error ? err : new Error(String(err)))
     }
   }
 
@@ -78,7 +81,7 @@ export function VideoGenerationPanel({
       const { ipcApi } = await import('@renderer/ipc')
       await ipcApi.request('ai.video.abort', { requestId })
     } catch (err) {
-      logger.error('Video abort failed', err)
+      logger.error('Video abort failed', err instanceof Error ? err : new Error(String(err)))
     }
   }
 
@@ -128,18 +131,11 @@ export function VideoGenerationPanel({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-foreground">{t('creative_lab.model')}</label>
-            <Select
-              value={selectedModelId}
-              onValueChange={setSelectedModelId}
-              placeholder={t('creative_lab.model_placeholder')}
-            >
+            <Select value={selectedModelId} onValueChange={handleModelChange}>
               {models.map((model) => {
                 const provider = providerById.get(model.providerId)
                 return (
-                  <SelectItem
-                    key={model.id}
-                    value={model.id}
-                  >
+                  <SelectItem key={model.id} value={createUniqueModelId(model.providerId, model.id)}>
                     {model.name} ({getProviderDisplayName(provider) ?? model.providerId})
                   </SelectItem>
                 )
@@ -156,9 +152,7 @@ export function VideoGenerationPanel({
             />
           </div>
 
-          {state === 'error' && error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {state === 'error' && error && <p className="text-sm text-destructive">{error}</p>}
 
           {state === 'done' && resultUrl && (
             <div className="overflow-hidden rounded-lg border border-border-subtle">

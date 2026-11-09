@@ -3,17 +3,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@cherrystudio/ui'
-import { loggerService } from '@logger'
 import { Navbar } from '@renderer/components/Navbar'
 import Scrollbar from '@renderer/components/Scrollbar'
-import { openSettingsTab } from '@renderer/services/mainWindowNavigation'
 import { useModels } from '@renderer/hooks/useModel'
 import { useProviders } from '@renderer/hooks/useProvider'
-import { isVideoGenerationModel } from '@shared/utils/model'
+import { openRoute, openSettingsTab } from '@renderer/services/mainWindowNavigation'
+import { isGenerateVideoModel } from '@shared/utils/model'
 
 import { VideoGenerationPanel } from './VideoGenerationPanel'
-
-const logger = loggerService.withContext('CreativeLabPage')
 
 type CreativeTab = 'image' | 'video'
 
@@ -23,10 +20,9 @@ export const CreativeLabPage = () => {
   const { models, isLoading: modelsLoading } = useModels()
   const { providers, isLoading: providersLoading } = useProviders()
 
-  const videoModels = models.filter((model) => isVideoGenerationModel(model))
-  const hasVideoModels = videoModels.length > 0
-  const hasConfiguredVideoProvider = videoModels.some(
-    (model) => providers.some((provider) => provider.id === model.providerId && provider.isEnabled)
+  const videoModels = models.filter((model) => isGenerateVideoModel(model))
+  const hasConfiguredVideoProvider = videoModels.some((model) =>
+    providers.some((provider) => provider.id === model.providerId && provider.isEnabled)
   )
 
   return (
@@ -38,16 +34,14 @@ export const CreativeLabPage = () => {
             <Button
               variant={activeTab === 'image' ? 'secondary' : 'ghost'}
               className="flex-1 gap-2"
-              onClick={() => setActiveTab('image')}
-            >
+              onClick={() => setActiveTab('image')}>
               <ImagePlus className="size-4" />
               {t('creative_lab.tab_image')}
             </Button>
             <Button
               variant={activeTab === 'video' ? 'secondary' : 'ghost'}
               className="flex-1 gap-2"
-              onClick={() => setActiveTab('video')}
-            >
+              onClick={() => setActiveTab('video')}>
               <Video className="size-4" />
               {t('creative_lab.tab_video')}
             </Button>
@@ -66,15 +60,7 @@ export const CreativeLabPage = () => {
               </div>
               <div className="rounded-xl border border-border-subtle bg-card p-6">
                 <p className="text-sm text-muted-foreground">{t('creative_lab.image_hint')}</p>
-                <Button
-                  className="mt-4 gap-2"
-                  onClick={() => {
-                    void (async () => {
-                      const { ipcApi } = await import('@renderer/ipc')
-                      await ipcApi.request('app.navigate', ['/app/paintings'])
-                    })().catch((error) => logger.error('Navigate to paintings failed', error))
-                  }}
-                >
+                <Button className="mt-4 gap-2" onClick={() => openRoute('/app/paintings')}>
                   {t('creative_lab.open_image_studio')}
                 </Button>
               </div>

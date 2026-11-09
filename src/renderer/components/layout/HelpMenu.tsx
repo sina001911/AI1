@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next'
 
 import { Button, MenuItem, MenuList, Popover, PopoverContent, PopoverTrigger } from '@cherrystudio/ui'
 import { loggerService } from '@logger'
-import { AppLogo } from '@renderer/components/brand/AppLogo'
 import { DoctorPopup } from '@renderer/components/doctor'
 import { useAccountSubmenu } from '@renderer/hooks/useAccountSubmenu'
 import { useMiniAppPopup } from '@renderer/hooks/useMiniAppPopup'
@@ -54,7 +53,7 @@ export function HelpMenu({
       appId: 'cherrystudio-guide',
       name: t('help.guide'),
       url,
-      logo: AppLogo
+      logo: 'application'
     })
   }
 

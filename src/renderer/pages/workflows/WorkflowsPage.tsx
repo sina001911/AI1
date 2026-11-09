@@ -1,6 +1,6 @@
+import { useNavigate } from '@tanstack/react-router'
 import { Plus, Workflow } from 'lucide-react'
 import type { FC } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@cherrystudio/ui'
@@ -8,7 +8,6 @@ import { loggerService } from '@logger'
 import { Navbar } from '@renderer/components/Navbar'
 import Scrollbar from '@renderer/components/Scrollbar'
 import { useTeamApi } from '@renderer/pages/studio/useTeamApi'
-import type { TeamForm } from '@shared/ipc/schemas/ai'
 
 const logger = loggerService.withContext('WorkflowsPage')
 
@@ -28,7 +27,8 @@ interface WorkflowTemplate {
 const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
     name: 'Software development',
-    objective: 'Build the requested software feature end to end: analyse requirements, write the code, review it, and deliver working files.',
+    objective:
+      'Build the requested software feature end to end: analyse requirements, write the code, review it, and deliver working files.',
     members: [
       { name: 'Architect', role: 'coding' },
       { name: 'Implementer', role: 'coding' },
@@ -37,7 +37,8 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   },
   {
     name: 'Film production',
-    objective: 'Produce the short film: research the concept, write the script, generate the storyboard images, and produce the final video.',
+    objective:
+      'Produce the short film: research the concept, write the script, generate the storyboard images, and produce the final video.',
     members: [
       { name: 'Screenwriter', role: 'general' },
       { name: 'Storyboard Artist', role: 'image' },
@@ -56,7 +57,8 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   },
   {
     name: 'Marketing launch',
-    objective: 'Plan and produce a marketing launch: analyse the market, draft the copy, and assemble the campaign assets.',
+    objective:
+      'Plan and produce a marketing launch: analyse the market, draft the copy, and assemble the campaign assets.',
     members: [
       { name: 'Market Analyst', role: 'data-analyst' },
       { name: 'Copywriter', role: 'general' },
@@ -137,18 +139,20 @@ export const WorkflowsPage: FC = () => {
                 key={template.name}
                 type="button"
                 className="group flex flex-col gap-3 rounded-xl border border-border-subtle bg-card p-4 text-left transition-colors hover:bg-accent/40"
-                onClick={() => void handleSelect(template)}
-              >
+                onClick={() => void handleSelect(template)}>
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-primary" />
                   <span className="text-sm font-medium text-foreground">{template.name}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  A ready-made team template that decomposes the objective into specialist tasks and runs them through the Collaborative Studio.
+                  A ready-made team template that decomposes the objective into specialist tasks and runs them through
+                  the Collaborative Studio.
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {template.members.map((m) => (
-                    <span key={m.name} className="rounded-md bg-accent/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span
+                      key={m.name}
+                      className="rounded-md bg-accent/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                       {m.name}
                     </span>
                   ))}
