@@ -1,11 +1,11 @@
 
 <h1 align="center">
-  <a href="https://github.com/CherryHQ/cherry-studio/releases">
-    <img src="https://github.com/CherryHQ/cherry-studio/blob/main/build/icon.png?raw=true" width="150" height="150" alt="banner" /><br>
+  <a href="https://github.com/sina001911/cherry-studio-ai1/releases">
+    <img src="https://github.com/sina001911/cherry-studio-ai1/blob/main/build/icon.png?raw=true" width="150" height="150" alt="AI1 banner" /><br>
   </a>
 </h1>
 
-<p align="center">English | <a href="https://cherryai.com">Official Site</a> | <a href="https://cherryai.com/docs/en/">Documentation</a> | <a href="./docs/contrib/development.md">Development</a> | <a href="https://github.com/CherryHQ/cherry-studio/issues">Feedback</a><br></p>
+<p align="center">English | <a href="https://cherryai.com">Official Site</a> | <a href="https://cherryai.com/docs/en/">Documentation</a> | <a href="./docs/contrib/development.md">Development</a> | <a href="https://github.com/sina001911/cherry-studio-ai1/issues">Feedback</a><br></p>
 
 <div align="center">
 
@@ -32,39 +32,39 @@
  <a href="https://www.producthunt.com/posts/cherry-studio?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-cherry&#0045;studio" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=496640&theme=light" alt="Cherry&#0032;Studio - AI&#0032;Chatbots&#0044;&#0032;AI&#0032;Desktop&#0032;Client | Product Hunt" width="220" height="55" /></a>
 </div>
 
-# 🍒 Cherry Studio
+# 🍒 AI1
 
-Cherry Studio is an AI workstation for Windows, macOS, and Linux. Chat with multiple models, work with agents, build knowledge bases, create images, and automate everyday tasks in one place.
+AI1 is an AI workstation for Windows, macOS, and Linux. Chat with multiple models, work with agents, build knowledge bases, create images, and automate everyday tasks in one place.
 
 **[Download Desktop](https://cherryai.com/download)** · **[Getting Started](https://cherryai.com/docs/en/getting-started/quick-start/)**
 
-📱 **Cherry Studio Mobile is now available for iOS and Android!** [Download](https://cherryai.com/mobile) · [GitHub repository](https://github.com/CherryHQ/cherry-studio-app).
+📱 **AI1 Mobile is now available for iOS and Android!** [Download](https://cherryai.com/mobile) · [GitHub repository](https://github.com/sina001911/cherry-studio-ai1).
 
 👏 Join [Telegram Group](https://t.me/CherryStudioAI)｜[Discord](https://discord.gg/wez8HtpxqQ) | [QQ Group(575014769)](https://qm.qq.com/q/lo0D4qVZKi)
 
-❤️ Like Cherry Studio? Give it a star 🌟 or [Sponsor](docs/sponsor.md) to support the development!
+❤️ Like AI1? Give it a star 🌟 or [Sponsor](docs/sponsor.md) to support the development!
 
 # 🌠 Screenshots
 
 **Agents — work with files, tools, and multi-step tasks.**
 
-![Cherry Studio agent workspace creating a presentation](.github/images/readme/agent-light-en.webp)
+![AI1 agent workspace creating a presentation](.github/images/readme/agent-light-en.webp)
 
 **Conversations — explore ideas with your models and assistants.**
 
-![Cherry Studio conversation displaying a Mermaid chart](.github/images/readme/chat-light-en.webp)
+![AI1 conversation displaying a Mermaid chart](.github/images/readme/chat-light-en.webp)
 
 **Model providers — configure services, API keys, and models in one place.**
 
-![Cherry Studio model provider settings in light mode](.github/images/readme/provider-light-en.webp)
+![AI1 model provider settings in light mode](.github/images/readme/provider-light-en.webp)
 
 **Knowledge bases — organize sources for retrieval and agent workflows.**
 
-![Cherry Studio knowledge base with folders and documents](.github/images/readme/knowledge-light-en.webp)
+![AI1 knowledge base with folders and documents](.github/images/readme/knowledge-light-en.webp)
 
 **Image creation — turn prompts into images and refine your work.**
 
-![Cherry Studio image creation workspace](.github/images/readme/drawing-light-en.webp)
+![AI1 image creation workspace](.github/images/readme/drawing-light-en.webp)
 
 # 🌟 Key Features
 
@@ -136,15 +136,15 @@ See the [Branching Strategy](docs/contrib/branching-strategy.md) for branch and 
 
 # 🏢 Enterprise Edition
 
-Cherry Studio Enterprise Edition brings centralized model management, shared knowledge bases, employee access controls, and private deployment options to teams and organizations.
+AI1 Enterprise Edition brings centralized model management, shared knowledge bases, employee access controls, and private deployment options to teams and organizations.
 
 Visit the [Enterprise website](https://enterprise.cherryai.com) for current capabilities and deployment information. For purchasing, pricing, or a demo, contact [bd@cherry-ai.com](mailto:bd@cherry-ai.com).
 
 # 🔗 Related Projects
 
-- [Cherry Studio Mobile](https://github.com/CherryHQ/cherry-studio-app): The mobile version of Cherry Studio for iOS and Android.
+- [AI1 Mobile](https://github.com/CherryHQ/cherry-studio-app): The mobile version of AI1 for iOS and Android.
 
-- [Cherry Studio Website](https://github.com/CherryHQ/cherry-studio-website): The official website and user documentation.
+- [AI1 Website](https://github.com/CherryHQ/cherry-studio-website): The official website and user documentation.
 
 - [new-api](https://github.com/QuantumNous/new-api): The next-generation LLM gateway and AI asset management system supports multiple languages.
 
@@ -177,9 +177,9 @@ Visit the [Enterprise website](https://enterprise.cherryai.com) for current capa
 
 # 📜 License
 
-The Cherry Studio Community Edition is governed by the standard GNU Affero General Public License v3.0 (AGPL-3.0), available at https://www.gnu.org/licenses/agpl-3.0.html.
+The AI1 Community Edition is governed by the standard GNU Affero General Public License v3.0 (AGPL-3.0), available at https://www.gnu.org/licenses/agpl-3.0.html.
 
-Use of the Cherry Studio Community Edition for commercial purposes is permitted, subject to full compliance with the terms and conditions of the AGPL-3.0 license.
+Use of the AI1 Community Edition for commercial purposes is permitted, subject to full compliance with the terms and conditions of the AGPL-3.0 license.
 
 Should you require a commercial license that provides an exemption from the AGPL-3.0 requirements, please contact us at bd@cherry-ai.com.
 
