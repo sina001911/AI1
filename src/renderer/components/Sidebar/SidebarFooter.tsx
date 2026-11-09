@@ -2,8 +2,8 @@ import { Columns2 } from 'lucide-react'
 import React from 'react'
 
 import { Button } from '@cherrystudio/ui'
-
 import { AppLogo } from '@renderer/components/brand/AppLogo'
+
 import { UserAvatar } from './primitives'
 import { SidebarTooltip } from './Tooltip'
 import type { SidebarUser, SidebarVisibleLayout } from './types'
@@ -25,11 +25,19 @@ export interface SidebarFooterProps {
   logo?: React.ReactElement
 }
 
-export function SidebarFooter({ layout, actions, userAction, onOverlayOpenChange, logo, ...props }: SidebarFooterProps) {
+export function SidebarFooter({
+  layout,
+  actions,
+  userAction,
+  onOverlayOpenChange,
+  logo,
+  ...props
+}: SidebarFooterProps) {
   const resolvedActions = typeof actions === 'function' ? actions(layout, onOverlayOpenChange) : actions
   const resolvedUserAction = typeof userAction === 'function' ? userAction(layout, onOverlayOpenChange) : userAction
 
-  if (layout === 'icon') return <IconFooter actions={resolvedActions} userAction={resolvedUserAction} logo={logo} {...props} />
+  if (layout === 'icon')
+    return <IconFooter actions={resolvedActions} userAction={resolvedUserAction} logo={logo} {...props} />
   return <FullFooter actions={resolvedActions} userAction={resolvedUserAction} logo={logo} {...props} />
 }
 
@@ -39,11 +47,15 @@ type FooterProps = Omit<SidebarFooterProps, 'layout' | 'actions' | 'userAction' 
   logo?: React.ReactElement
 }
 
-function IconFooter({ user, userAction, actions, extensionsLabel, onExtensionsClick, renderUserTrigger, logo }: FooterProps) {
-  return (
-    <div className="flex flex-col items-center gap-1 px-1.5 pt-2 pb-2.5 [-webkit-app-region:no-drag]">
-      {logo ?? <AppLogo className="size-5" />}
-      {extensionsLabel && (
+function IconFooter({
+  user,
+  userAction,
+  actions,
+  extensionsLabel,
+  onExtensionsClick,
+  renderUserTrigger,
+  logo
+}: FooterProps) {
   const userButton = user ? (
     <Button
       type="button"
@@ -58,6 +70,7 @@ function IconFooter({ user, userAction, actions, extensionsLabel, onExtensionsCl
 
   return (
     <div className="flex flex-col items-center gap-1 px-1.5 pt-2 pb-2.5 [-webkit-app-region:no-drag]">
+      {logo ?? <AppLogo className="size-5" />}
       {extensionsLabel && (
         <SidebarTooltip content={extensionsLabel}>
           <Button
@@ -80,7 +93,15 @@ function IconFooter({ user, userAction, actions, extensionsLabel, onExtensionsCl
   )
 }
 
-function FullFooter({ user, userAction, actions, extensionsLabel, onExtensionsClick, renderUserTrigger, logo }: FooterProps) {
+function FullFooter({
+  user,
+  userAction,
+  actions,
+  extensionsLabel,
+  onExtensionsClick,
+  renderUserTrigger,
+  logo
+}: FooterProps) {
   const userButton = user ? (
     <Button
       type="button"

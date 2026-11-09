@@ -21,11 +21,7 @@ export function classifyArtifact(
   if (ct.includes('audio') || /\.(mp3|wav|ogg|m4a|flac)$/i.test(name)) {
     return { type: 'audio', contentType: ct || 'audio/mpeg' }
   }
-  if (
-    ct.includes('json') ||
-    /\.(json|csv|tsv|xml|yaml|yml)$/i.test(name) ||
-    /^\s*[\[{]/.test(content.trim())
-  ) {
+  if (ct.includes('json') || /\.(json|csv|tsv|xml|yaml|yml)$/i.test(name) || /^\s*[{[]/.test(content.trim())) {
     return { type: 'data', contentType: ct || 'application/json' }
   }
   if (ct.includes('pdf') || /\.pdf$/i.test(name)) {
@@ -34,7 +30,11 @@ export function classifyArtifact(
   if (ct.includes('markdown') || /\.md$/i.test(name)) {
     return { type: 'document', contentType: ct || 'text/markdown' }
   }
-  if (ct.includes('javascript') || ct.includes('typescript') || /\.(js|ts|jsx|tsx|py|rs|go|java|c|cpp|sh)$/i.test(name)) {
+  if (
+    ct.includes('javascript') ||
+    ct.includes('typescript') ||
+    /\.(js|ts|jsx|tsx|py|rs|go|java|c|cpp|sh)$/i.test(name)
+  ) {
     return { type: 'code', contentType: ct || 'text/plain' }
   }
   if (content.trim().startsWith('<') && content.trim().includes('>')) {

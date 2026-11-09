@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildPlan } from '../plan'
+import { createInMemoryProjectWorkspace } from '../projectWorkspace'
+import { createInMemoryArtifactRegistry } from '../registry'
 import { executePlan, createCancellationController } from '../scheduler'
 import { makeTeam, makeModelConfig, defaultToolPermissions } from '../team'
-import { createInMemoryArtifactRegistry } from '../registry'
-import { createInMemoryProjectWorkspace } from '../projectWorkspace'
 import type { TeamEvent } from '../types'
 
 function buildTeam() {
@@ -15,8 +15,22 @@ function buildTeam() {
     maxConcurrency: 2,
     leader: { name: 'L', modelConfig: makeModelConfig('a', 'b'), systemPrompt: 'x' },
     specialists: [
-      { name: 'Coder', role: 'coding', modelConfig: makeModelConfig('a', 'b'), systemPrompt: 'x', toolPermissions: defaultToolPermissions('coding'), enabled: true },
-      { name: 'Reviewer', role: 'reviewer', modelConfig: makeModelConfig('a', 'b'), systemPrompt: 'x', toolPermissions: defaultToolPermissions('reviewer'), enabled: true }
+      {
+        name: 'Coder',
+        role: 'coding',
+        modelConfig: makeModelConfig('a', 'b'),
+        systemPrompt: 'x',
+        toolPermissions: defaultToolPermissions('coding'),
+        enabled: true
+      },
+      {
+        name: 'Reviewer',
+        role: 'reviewer',
+        modelConfig: makeModelConfig('a', 'b'),
+        systemPrompt: 'x',
+        toolPermissions: defaultToolPermissions('reviewer'),
+        enabled: true
+      }
     ]
   })
 }
@@ -36,7 +50,11 @@ describe('artifact + workspace integration', () => {
       executeTask: async (task) => `output for ${task.title}`,
       signal: createCancellationController().signal,
       onEvent: (e) => events.push(e),
-      sharedContext: { entries: [], append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }), snapshot: () => '' } as any,
+      sharedContext: {
+        entries: [],
+        append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }),
+        snapshot: () => ''
+      },
       onApprovalRequest: async () => ({ approved: true }),
       artifactRegistry: registry,
       workspace
@@ -66,7 +84,11 @@ describe('artifact + workspace integration', () => {
       executeTask: async () => 'task output',
       signal: createCancellationController().signal,
       onEvent: (e) => events.push(e),
-      sharedContext: { entries: [], append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }), snapshot: () => '' } as any,
+      sharedContext: {
+        entries: [],
+        append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }),
+        snapshot: () => ''
+      },
       onApprovalRequest: async () => ({ approved: true }),
       artifactRegistry: registry,
       onReviewRequest: async ({ artifactId }) => ({
@@ -101,7 +123,11 @@ describe('artifact + workspace integration', () => {
       executeTask: async () => 'task output',
       signal: createCancellationController().signal,
       onEvent: (e) => events.push(e),
-      sharedContext: { entries: [], append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }), snapshot: () => '' } as any,
+      sharedContext: {
+        entries: [],
+        append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }),
+        snapshot: () => ''
+      },
       onApprovalRequest: async () => ({ approved: true }),
       artifactRegistry: registry,
       onReviewRequest: async () => {
@@ -126,7 +152,11 @@ describe('artifact + workspace integration', () => {
       executeTask: async () => 'output',
       signal: createCancellationController().signal,
       onEvent: (e) => events.push(e),
-      sharedContext: { entries: [], append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }), snapshot: () => '' } as any,
+      sharedContext: {
+        entries: [],
+        append: () => ({ id: '', taskId: '', taskTitle: '', delta: '', createdAt: 0 }),
+        snapshot: () => ''
+      },
       onApprovalRequest: async () => ({ approved: true })
     })
 

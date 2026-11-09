@@ -1,6 +1,5 @@
 import {
   type AgentMessage,
-  type Artifact,
   type ExecutePlanOptions,
   type ExecutionResult,
   type SharedContext,
@@ -150,7 +149,7 @@ export function executePlan(options: SchedulerOptions): { promise: Promise<Execu
         consumedBy: [],
         createdAt: Date.now(),
         updatedAt: Date.now()
-      } as Artifact)
+      })
       emit({ type: 'artifact_created', runId, artifact })
       // Request an independent review when the task is gated for review.
       if (task.gate === 'review' && options.onReviewRequest) {

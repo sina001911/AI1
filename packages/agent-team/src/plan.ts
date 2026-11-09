@@ -1,6 +1,6 @@
-import { createId, now } from './team'
 import { pickSpecialistByCapability } from './capabilities'
-import { type AgentCapabilities, type ExecutionPlan, type Specialist, type Task, type TaskGate, type Team } from './types'
+import { createId, now } from './team'
+import { type AgentCapabilities, type ExecutionPlan, type Task, type TaskGate, type Team } from './types'
 
 export function buildPlan(team: Team, objective: string, raw: string): ExecutionPlan {
   const tasks = parseTaskList(raw, team.id)

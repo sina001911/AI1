@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import type { Specialist } from '@cherrystudio/agent-team/types'
 import { resolveSpecialistTools } from '@main/ai/agentTeam/SpecialistTools'
 import { registry } from '@main/ai/tools/adapters/aiSdk/registry'
-import type { Specialist } from '@cherrystudio/agent-team/types'
 
 /**
  * End-to-end assertion through the host's real tool registry singleton: a
@@ -67,7 +67,7 @@ describe('resolveSpecialistTools (e2e against the real registry)', () => {
     const approvals: Array<{ toolName: string; args: unknown; specialistId: string }> = []
     const { names, promptNames, tools } = resolveSpecialistTools(
       specialist('s-prompt', { '*': 'prompt' }),
-      (request) => {
+      async (request) => {
         approvals.push(request)
         return true
       }
@@ -93,18 +93,16 @@ describe('resolveSpecialistTools (e2e against the real registry)', () => {
 
   it('declining an approval throws so the tool never runs', async () => {
     registerStub('web_search')
-    const { tools } = resolveSpecialistTools(specialist('s-decline', { '*': 'prompt' }), () => false)
+    const { tools } = resolveSpecialistTools(specialist('s-decline', { '*': 'prompt' }), async () => false)
     expect(tools.web_search).toBeDefined()
-    await expect((tools.web_search as any).execute({ q: 'x' }, {})).rejects.toThrow(
-      /rejected by human approval/
-    )
+    await expect((tools.web_search as any).execute({ q: 'x' }, {})).rejects.toThrow(/rejected by human approval/)
     registry.deregister('web_search')
   })
 
   it('approving an approval lets the wrapped tool delegate to the real tool', async () => {
     const execute = vi.fn(async () => 'delegated')
     registerStub('__test_specialist_tool__', execute)
-    const { tools } = resolveSpecialistTools(specialist('s-approve', { '*': 'prompt' }), () => true)
+    const { tools } = resolveSpecialistTools(specialist('s-approve', { '*': 'prompt' }), async () => true)
     const wrapped = tools['__test_specialist_tool__']
     expect(wrapped).toBeDefined()
     const out = await (wrapped as any).execute({ q: 'x' }, {})

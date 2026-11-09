@@ -10,7 +10,6 @@ import {
   resolveClaim,
   renderArtifactIndex
 } from '../artifact'
-import type { ArtifactStatus } from '../types'
 
 describe('classifyArtifact', () => {
   it('classifies markdown by extension', () => {
@@ -46,7 +45,7 @@ describe('createArtifact', () => {
     expect(a.ref).toBe('/tmp/frame.png')
   })
   it('respects explicit status', () => {
-    const a = createArtifact({ runId: 'r', taskId: 't', name: 'x', content: 'y', status: 'final' as ArtifactStatus })
+    const a = createArtifact({ runId: 'r', taskId: 't', name: 'x', content: 'y', status: 'final' })
     expect(a.status).toBe('final')
   })
 })

@@ -1,7 +1,7 @@
-import { ToolRegistry } from '@main/ai/tools/adapters/aiSdk/registry'
 import { describe, expect, it, vi } from 'vitest'
 
 import { resolveSpecialistTools } from '@main/ai/agentTeam/SpecialistTools'
+import { ToolRegistry } from '@main/ai/tools/adapters/aiSdk/registry'
 
 function makeSpecialist(permissions: Record<string, 'allow' | 'deny' | 'prompt'> = {}) {
   return {
@@ -25,9 +25,11 @@ function register(reg: ToolRegistry, name: string) {
     description: `Search the web for ${name}`,
     defer: 'never',
     tool: {
+      type: 'function',
       description: name,
+      inputSchema: {},
       execute: vi.fn(async () => ({ ok: true }))
-    }
+    } as never
   })
 }
 
@@ -65,11 +67,7 @@ describe('resolveSpecialistTools', () => {
     const reg = new ToolRegistry()
     register(reg, 'web_search')
     const approved = vi.fn(async () => true)
-    const { tools, promptNames } = resolveSpecialistTools(
-      makeSpecialist({ web_search: 'prompt' }),
-      approved,
-      reg
-    )
+    const { tools, promptNames } = resolveSpecialistTools(makeSpecialist({ web_search: 'prompt' }), approved, reg)
     expect(promptNames).toEqual(['web_search'])
     expect(Object.keys(tools)).toEqual(['web_search'])
     await (tools.web_search as any).execute({ q: 'x' }, {})
@@ -79,14 +77,8 @@ describe('resolveSpecialistTools', () => {
   it('rejects a `prompt` invocation when the human declines', async () => {
     const reg = new ToolRegistry()
     register(reg, 'web_search')
-    const { tools } = resolveSpecialistTools(
-      makeSpecialist({ web_search: 'prompt' }),
-      async () => false,
-      reg
-    )
-    await expect((tools.web_search as any).execute({ q: 'x' }, {})).rejects.toThrow(
-      /rejected by human approval/
-    )
+    const { tools } = resolveSpecialistTools(makeSpecialist({ web_search: 'prompt' }), async () => false, reg)
+    await expect((tools.web_search as any).execute({ q: 'x' }, {})).rejects.toThrow(/rejected by human approval/)
   })
 
   it('denies every tool when the specialist has no matching permission', () => {
