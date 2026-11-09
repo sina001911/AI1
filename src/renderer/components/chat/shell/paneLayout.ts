@@ -1,11 +1,11 @@
+import { MOTION_TRANSITION } from '@cherrystudio/ui/styles/motion'
+
 export const CHAT_SHELL_PANE_WIDTH = 'var(--assistants-width)'
 export const CHAT_CENTER_MIN_USABLE_WIDTH = 360
 /** Hard floor for the center column once the right pane has yielded down to its minimum. */
 export const CHAT_CENTER_FLOOR_WIDTH = 200
-export const CHAT_SHELL_TRANSITION = {
-  duration: 0.3,
-  ease: 'easeInOut'
-} as const
+/** Shared transition for shell panes; reads the motion token so it stays in sync with the rest of the UI. */
+export const CHAT_SHELL_TRANSITION = MOTION_TRANSITION
 
 export type ChatPanePosition = 'left' | 'right'
 

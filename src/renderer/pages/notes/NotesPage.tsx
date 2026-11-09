@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button, type CodeEditorHandles, ConfirmDialog } from '@cherrystudio/ui'
+import { MOTION_TRANSITION } from '@cherrystudio/ui/styles/motion'
 import { loggerService } from '@logger'
 import type { RichEditorRef } from '@renderer/components/RichEditor/types'
 import { useCache } from '@renderer/data/hooks/useCache'
@@ -1085,7 +1086,7 @@ const NotesPage: FC<NotesPageProps> = ({ notePath, onNoteOpened }) => {
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 250, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              transition={MOTION_TRANSITION}
               style={{ height: '100%', overflow: 'hidden', flexShrink: 0 }}>
               <NotesSidebar
                 notesTree={notesTree}

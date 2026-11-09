@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react'
 
 import { Input, Tooltip } from '@cherrystudio/ui'
+import { MOTION_DURATION, MOTION_EASE } from '@cherrystudio/ui/styles/motion'
 import i18n from '@renderer/i18n/resolver'
 
 interface CollapsibleSearchBarProps {
@@ -72,8 +73,14 @@ const CollapsibleSearchBar = ({
       initial={false}
       animate={searchVisible ? 'expanded' : 'collapsed'}
       variants={{
-        expanded: { width: maxWidth, transition: { duration: animated ? 0.3 : 0, ease: 'easeInOut' } },
-        collapsed: { width: collapsedSize, transition: { duration: animated ? 0.3 : 0, ease: 'easeInOut' } }
+        expanded: {
+          width: maxWidth,
+          transition: { duration: animated ? MOTION_DURATION.md : 0, ease: MOTION_EASE.InOut }
+        },
+        collapsed: {
+          width: collapsedSize,
+          transition: { duration: animated ? MOTION_DURATION.md : 0, ease: MOTION_EASE.InOut }
+        }
       }}
       style={{
         display: 'flex',
@@ -89,8 +96,16 @@ const CollapsibleSearchBar = ({
         initial={false}
         animate={searchVisible ? 'expanded' : 'collapsed'}
         variants={{
-          expanded: { width: '100%', opacity: 1, transition: { duration: animated ? 0.3 : 0, ease: 'easeInOut' } },
-          collapsed: { width: 0, opacity: 0, transition: { duration: animated ? 0.3 : 0, ease: 'easeInOut' } }
+          expanded: {
+            width: '100%',
+            opacity: 1,
+            transition: { duration: animated ? MOTION_DURATION.md : 0, ease: MOTION_EASE.InOut }
+          },
+          collapsed: {
+            width: 0,
+            opacity: 0,
+            transition: { duration: animated ? MOTION_DURATION.md : 0, ease: MOTION_EASE.InOut }
+          }
         }}
         style={{ overflow: 'hidden', flexShrink: 1 }}
         aria-hidden={!searchVisible}>
@@ -142,9 +157,13 @@ const CollapsibleSearchBar = ({
         variants={{
           visible: {
             opacity: 1,
-            transition: { duration: animated ? 0.1 : 0, delay: animated ? 0.3 : 0, ease: 'easeInOut' }
+            transition: {
+              duration: animated ? MOTION_DURATION.fast : 0,
+              delay: animated ? MOTION_DURATION.md : 0,
+              ease: MOTION_EASE.InOut
+            }
           },
-          hidden: { opacity: 0, transition: { duration: animated ? 0.1 : 0, ease: 'easeInOut' } }
+          hidden: { opacity: 0, transition: { duration: animated ? MOTION_DURATION.fast : 0, ease: MOTION_EASE.InOut } }
         }}
         style={{
           position: 'absolute',

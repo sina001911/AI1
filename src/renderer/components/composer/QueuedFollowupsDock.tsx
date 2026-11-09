@@ -4,6 +4,7 @@ import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button, ReorderableList, Tooltip } from '@cherrystudio/ui'
+import { MOTION_QUEUE_TRANSITION } from '@cherrystudio/ui/styles/motion'
 import { type ChatInputTokenKind, type ChatTokenView } from '@renderer/components/composer/chatTokenView'
 import { ComposerToken } from '@renderer/components/composer/tokenView'
 import { isComposerInputTokenKind } from '@renderer/utils/composerTokenPolicy'
@@ -11,9 +12,6 @@ import { cn } from '@renderer/utils/style'
 
 import { excludeComposerDraftTokens } from './composerDraft'
 import type { FollowupQueueItem } from './useFollowupQueue'
-
-const QUEUE_EASE = [0.23, 1, 0.32, 1] as const
-const QUEUE_CSS_EASE = `cubic-bezier(${QUEUE_EASE.join(',')})`
 
 interface QueuedFollowupsDockProps {
   items: FollowupQueueItem[]
@@ -155,8 +153,8 @@ export function QueuedFollowupsDock({
   const listId = useId()
   const transition = {
     type: 'tween' as const,
-    duration: shouldAnimate ? 0.2 : 0,
-    ease: QUEUE_EASE
+    duration: shouldAnimate ? MOTION_QUEUE_TRANSITION.duration : 0,
+    ease: MOTION_QUEUE_TRANSITION.ease
   }
   if (items.length === 0) return null
 
@@ -195,7 +193,7 @@ export function QueuedFollowupsDock({
               transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
               transitionProperty: 'transform',
               transitionDuration: `${transition.duration}s`,
-              transitionTimingFunction: QUEUE_CSS_EASE
+              transitionTimingFunction: `cubic-bezier(${MOTION_QUEUE_TRANSITION.ease.join(',')})`
             }}>
             <ChevronRight className="size-3.5" />
           </span>
@@ -230,7 +228,7 @@ export function QueuedFollowupsDock({
               opacity: isExpanded ? 1 : 0,
               transform: isExpanded ? 'translateY(0px)' : 'translateY(4px)',
               transitionDuration: `${transition.duration}s`,
-              transitionTimingFunction: QUEUE_CSS_EASE
+              transitionTimingFunction: `cubic-bezier(${MOTION_QUEUE_TRANSITION.ease.join(',')})`
             }}>
             <ReorderableList
               items={items}

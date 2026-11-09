@@ -3,6 +3,7 @@ import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
 import type { FC, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { MOTION_DURATION, MOTION_EASE } from '@cherrystudio/ui/styles/motion'
 import { cn } from '@renderer/utils/style'
 
 import { AdvancedSettingsButton } from './PanelPrimitives'
@@ -33,7 +34,7 @@ export const AdvancedConfigToggle: FC<{ open: boolean; onToggle: () => void; chi
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}>
+              transition={{ duration: MOTION_DURATION.base, ease: MOTION_EASE.InOut }}>
               <div className="pt-4">{children}</div>
             </m.div>
           )}

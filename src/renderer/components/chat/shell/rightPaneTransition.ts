@@ -1,5 +1,7 @@
 import type { TargetAndTransition } from 'motion/react'
 
+import { MOTION_RESTORE_TRANSITION } from '@cherrystudio/ui/styles/motion'
+
 import { CHAT_SHELL_TRANSITION } from './paneLayout'
 
 export type RightPaneLayoutMode = 'closed' | 'docked' | 'maximized'
@@ -40,7 +42,7 @@ export interface PersistentRightPaneReconnectPlan {
  * A restore has only the pane travelling — the composer drops behind it at the click and the
  * centre is already laid out — so it needs longer than a maximize to read as one motion.
  */
-const RIGHT_PANE_RESTORE_TRANSITION = { duration: 0.42, ease: CHAT_SHELL_TRANSITION.ease } as const
+const RIGHT_PANE_RESTORE_TRANSITION = MOTION_RESTORE_TRANSITION
 
 export const RIGHT_PANE_CLIP_COLLAPSED = 'inset(0% 0% 0% 100%)'
 export const RIGHT_PANE_CLIP_REVEALED = 'inset(0% 0% 0% 0%)'

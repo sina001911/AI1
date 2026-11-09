@@ -1,0 +1,36 @@
+/**
+ * Motion
+ * 动效 - duration, easing, and reduced-motion contract
+ *
+ * Single source of truth for animation timing across the product. Components
+ * should read these tokens instead of inlining duration/ease values, so every
+ * motion in the UI shares one rhythm and respects the OS-level
+ * prefers-reduced-motion setting in one place.
+ */
+
+:root {
+  /* Durations */
+  --cs-motion-duration-fast: 0.1s;
+  --cs-motion-duration-base: 0.2s;
+  --cs-motion-duration-md: 0.3s;
+  --cs-motion-duration-slow: 0.42s;
+  --cs-motion-duration-xslow: 0.9s;
+
+  /* Easing */
+  --cs-motion-ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+  --cs-motion-ease-out: cubic-bezier(0, 0, 0.22, 1);
+  --cs-motion-ease-queue: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Reduced motion: collapse every timed transition to an instant swap. */
+  --cs-motion-duration-reduced: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cs-motion-duration-fast: 0s;
+    --cs-motion-duration-base: 0s;
+    --cs-motion-duration-md: 0s;
+    --cs-motion-duration-slow: 0s;
+    --cs-motion-duration-xslow: 0s;
+  }
+}
