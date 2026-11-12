@@ -1014,15 +1014,21 @@ describe('heartbeatSchedule', () => {
     await expect(drainHeartbeatWork()).resolves.toBe(true)
   })
 
-  it('leaves no schedule or workspace when heartbeat-file provisioning fails', async () => {
-    seedAgent(AGENT_ID)
-    chmodSync(path.join(agentsRoot, AGENT_ID), 0o555)
+  it.skipIf(process.platform === 'win32')(
+    'leaves no schedule or workspace when heartbeat-file provisioning fails',
+    async () => {
+      // chmod 0o555 is the only portable way to simulate an unwritable agent
+      // directory on POSIX; Windows ignores the read-only flag on directories,
+      // so the refusal can't be reproduced here.
+      seedAgent(AGENT_ID)
+      chmodSync(path.join(agentsRoot, AGENT_ID), 0o555)
 
-    await expect(syncHeartbeatSchedule(AGENT_ID)).rejects.toThrow()
+      await expect(syncHeartbeatSchedule(AGENT_ID)).rejects.toThrow()
 
-    expect(heartbeatRows(AGENT_ID)).toHaveLength(0)
-    expect(dbh.db.select().from(agentWorkspaceTable).all()).toHaveLength(0)
-  })
+      expect(heartbeatRows(AGENT_ID)).toHaveLength(0)
+      expect(dbh.db.select().from(agentWorkspaceTable).all()).toHaveLength(0)
+    }
+  )
 
   it('leaves no schedule or workspace when schedule registration fails', async () => {
     seedAgent(AGENT_ID)

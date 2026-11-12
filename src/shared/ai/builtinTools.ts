@@ -724,3 +724,70 @@ export type McpResourceSavedBlob = z.infer<typeof mcpResourceSavedBlobSchema>
 export type McpResourceListOutput = z.infer<typeof mcpResourceListOutputSchema>
 export type McpResourceReadOutput = z.infer<typeof mcpResourceReadOutputSchema>
 export type McpResourceReadResult = z.infer<typeof mcpResourceReadResultSchema>
+
+// ── data_analyze ──────────────────────────────────────────────────
+
+export const DATA_ANALYZE_TOOL_NAME = 'data_analyze'
+
+export const dataAnalyzeInputSchema = z.object({
+  csv: z.string().trim().min(1).describe('CSV text to analyze, including the header row.'),
+  instruction: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .describe('What to look for — the question the summary and chart should answer.'),
+  /** When the CSV is too wide for one chart, ask for a specific column to drive the chart. */
+  focusColumn: z.string().optional().describe('Optional column name to feature in the chart.')
+})
+
+/**
+ * One column's descriptive statistics. `type` is inferred from the parsed
+ * values: numeric columns get `mean`/`min`/`max`, categorical ones get
+ * `topValues` instead. A column whose every cell is empty is `empty`.
+ */
+export const dataAnalysisColumnStatSchema = z.object({
+  name: z.string(),
+  type: z.enum(['numeric', 'categorical', 'empty']),
+  count: z.number().int().nonnegative(),
+  distinct: z.number().int().nonnegative(),
+  mean: z.number().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  topValues: z.array(z.object({ value: z.string(), count: z.number().int().nonnegative() })).optional()
+})
+
+/** A chart the renderer can draw directly with the existing `Chart` component. */
+export const dataAnalysisChartSchema = z.object({
+  kind: z.enum(['bar', 'line', 'pie']),
+  title: z.string().optional(),
+  /** For bar/line: category labels. For pie: ignored. */
+  categories: z.array(z.union([z.string(), z.number()])).optional(),
+  /** For bar/line: one or more series. For pie: the slices. */
+  series: z
+    .array(
+      z.object({
+        name: z.string(),
+        values: z.array(z.union([z.number(), z.null()])).optional(),
+        data: z.array(z.object({ name: z.string(), value: z.number() })).optional()
+      })
+    )
+    .optional()
+})
+
+export const dataAnalysisOutputSchema = z.object({
+  summary: z.string().describe('One-paragraph, human-readable answer to the instruction.'),
+  columns: z.array(dataAnalysisColumnStatSchema).describe('Per-column descriptive statistics, in file order.'),
+  chart: dataAnalysisChartSchema.describe('A chart the renderer can draw from the parsed data.'),
+  /** Number of data rows parsed (excluding the header). */
+  rowCount: z.number().int().nonnegative(),
+  /** When the input was not valid CSV: the parse error, with `columns`/`chart` empty. */
+  parseError: z.string().optional()
+})
+
+export const DATA_ANALYZE_DESCRIPTION =
+  'Parse a CSV block, compute per-column statistics, and produce a chart. Use for any "analyze this data" request.'
+
+export type DataAnalysisColumnStat = z.infer<typeof dataAnalysisColumnStatSchema>
+export type DataAnalysisChart = z.infer<typeof dataAnalysisChartSchema>
+export type DataAnalysisOutput = z.infer<typeof dataAnalysisOutputSchema>

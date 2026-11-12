@@ -140,11 +140,11 @@ Core orchestration is complete and fully tested. Ongoing work refines reliabilit
 | i18n (ZH) | PARTIAL | Translations exist but may be incomplete |
 | RTL / فارسی | IMPLEMENTED ✅ | `useWindowRuntime.ts:62-68` sets `dir="rtl"` when `language === 'fa-IR'`; Tailwind `rtl:` prefix classes in use throughout renderer |
 | Sidebar customization | PARTIAL | `SidebarFooter.tsx` in current diff — formatting pass + logo prop already wired |
-| Animation | PARTIAL | Uses `motion/react` in some places; inconsistent across pages |
+| Animation | PARTIAL → FIRST HALF LANDED | `motion.css` + `motion.ts` tokens added; shell, composer, search bar, collapsible toggle, and notes sidebar now read them (commit `6fd131c0c`) |
 | Responsive layout | PARTIAL | Works on desktop; mobile not a target (Electron app) |
 
 **Open items:**
-- [ ] Standardize motion/animations across all pages
+- [x] Standardize motion/animations across all pages — **first half landed**: `packages/ui/src/styles/tokens/motion.css` + `motion.ts` are the single source of truth for duration/ease/reduced-motion; shell, composer, search bar, collapsible toggle, and notes sidebar now read them (`6fd131c0c`). Remaining 15 page-level files that still import `motion/react` are intentionally deferred to a follow-up pass.
 - [ ] Complete `SidebarFooter` API changes from current diff (formatting clean, not logic change)
 
 ---

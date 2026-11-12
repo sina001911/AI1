@@ -7,6 +7,8 @@
  * whose sticky-pointer branches are covered in the 'session reuse' block.
  */
 
+import path from 'node:path'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { JobContext } from '@main/core/job/types'
@@ -368,7 +370,7 @@ describe('runAgentTask', () => {
 
     expect(out).toEqual({ result: 'Skipped (no file)' })
     expect(agentSessionService.create).not.toHaveBeenCalled()
-    expect(readHeartbeat).toHaveBeenCalledWith('/agent-data/a1')
+    expect(readHeartbeat).toHaveBeenCalledWith(path.join('/agent-data', 'a1'))
   })
 
   describe('session reuse', () => {
