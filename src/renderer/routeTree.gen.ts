@@ -22,6 +22,7 @@ import { Route as AppFilesRouteImport } from './routes/app/files'
 import { Route as AppKnowledgeRouteImport } from './routes/app/knowledge'
 import { Route as AppLaunchpadRouteImport } from './routes/app/launchpad'
 import { Route as AppNotesRouteImport } from './routes/app/notes'
+import { Route as AppPromptsRouteImport } from './routes/app/prompts'
 import { Route as AppReleaseNotesRouteImport } from './routes/app/release-notes'
 import { Route as AppStudioRouteImport } from './routes/app/studio'
 import { Route as AppTranslateRouteImport } from './routes/app/translate'
@@ -140,6 +141,11 @@ const AppLaunchpadRoute = AppLaunchpadRouteImport.update({
 const AppNotesRoute = AppNotesRouteImport.update({
   id: '/notes',
   path: '/notes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPromptsRoute = AppPromptsRouteImport.update({
+  id: '/prompts',
+  path: '/prompts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReleaseNotesRoute = AppReleaseNotesRouteImport.update({
@@ -432,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/launchpad': typeof AppLaunchpadRoute
   '/app/notes': typeof AppNotesRoute
+  '/app/prompts': typeof AppPromptsRoute
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/studio': typeof AppStudioRoute
   '/app/translate': typeof AppTranslateRoute
@@ -500,6 +507,7 @@ export interface FileRoutesByTo {
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/launchpad': typeof AppLaunchpadRoute
   '/app/notes': typeof AppNotesRoute
+  '/app/prompts': typeof AppPromptsRoute
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/studio': typeof AppStudioRoute
   '/app/translate': typeof AppTranslateRoute
@@ -567,6 +575,7 @@ export interface FileRoutesById {
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/launchpad': typeof AppLaunchpadRoute
   '/app/notes': typeof AppNotesRoute
+  '/app/prompts': typeof AppPromptsRoute
   '/app/release-notes': typeof AppReleaseNotesRoute
   '/app/studio': typeof AppStudioRoute
   '/app/translate': typeof AppTranslateRoute
@@ -638,6 +647,7 @@ export interface FileRouteTypes {
     | '/app/knowledge'
     | '/app/launchpad'
     | '/app/notes'
+    | '/app/prompts'
     | '/app/release-notes'
     | '/app/studio'
     | '/app/translate'
@@ -706,6 +716,7 @@ export interface FileRouteTypes {
     | '/app/knowledge'
     | '/app/launchpad'
     | '/app/notes'
+    | '/app/prompts'
     | '/app/release-notes'
     | '/app/studio'
     | '/app/translate'
@@ -772,6 +783,7 @@ export interface FileRouteTypes {
     | '/app/knowledge'
     | '/app/launchpad'
     | '/app/notes'
+    | '/app/prompts'
     | '/app/release-notes'
     | '/app/studio'
     | '/app/translate'
@@ -924,6 +936,13 @@ declare module '@tanstack/react-router' {
       path: '/notes'
       fullPath: '/app/notes'
       preLoaderRoute: typeof AppNotesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prompts': {
+      id: '/app/prompts'
+      path: '/prompts'
+      fullPath: '/app/prompts'
+      preLoaderRoute: typeof AppPromptsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/release-notes': {
@@ -1319,6 +1338,7 @@ interface AppRouteChildren {
   AppKnowledgeRoute: typeof AppKnowledgeRoute
   AppLaunchpadRoute: typeof AppLaunchpadRoute
   AppNotesRoute: typeof AppNotesRoute
+  AppPromptsRoute: typeof AppPromptsRoute
   AppReleaseNotesRoute: typeof AppReleaseNotesRoute
   AppStudioRoute: typeof AppStudioRoute
   AppTranslateRoute: typeof AppTranslateRoute
@@ -1341,6 +1361,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppKnowledgeRoute: AppKnowledgeRoute,
   AppLaunchpadRoute: AppLaunchpadRoute,
   AppNotesRoute: AppNotesRoute,
+  AppPromptsRoute: AppPromptsRoute,
   AppReleaseNotesRoute: AppReleaseNotesRoute,
   AppStudioRoute: AppStudioRoute,
   AppTranslateRoute: AppTranslateRoute,

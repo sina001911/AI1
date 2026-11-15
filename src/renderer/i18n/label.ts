@@ -209,6 +209,7 @@ const sidebarIconKeyMap = {
   translate: 'translate.title',
   mini_app: 'miniApp.title',
   knowledge: 'knowledge.title',
+  prompts_library: 'title.prompts',
   files: 'files.title',
   code_tools: 'code.title',
   notes: 'notes.title'
