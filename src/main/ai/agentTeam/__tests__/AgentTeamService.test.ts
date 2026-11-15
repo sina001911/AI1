@@ -359,6 +359,60 @@ describe('AgentTeamService', () => {
     expect(() => service.getRunState(uuidv4())).toThrow(/Run not found/)
   })
 
+  it('batches task-progress deltas into delta_batch events instead of broadcasting each delta', async () => {
+    const team = makeTeamDomain(teamId, memberId)
+    decomposeMock.mockResolvedValue({ plan: makePlan(team, 'stream test'), raw: '- stream' })
+    executeTaskMock.mockImplementation(async (_task: any, _spec: any, _signal: any, onDelta: any) => {
+      onDelta('chunk 1')
+      onDelta('chunk 2')
+      onDelta('chunk 3')
+      return 'streamed output'
+    })
+    leaderTextMock.mockResolvedValue('synthesized')
+
+    const run = await service.startRun(teamId, 'stream test')
+    const ctrl = (service as any).runControllers.get(run.id)
+    await ctrl.promise
+
+    const state = service.getRunState(run.id)
+    expect(state.run.status).toBe('completed')
+
+    // Individual deltas are never broadcast — only batches.
+    expect(broadcastSpy).not.toHaveBeenCalledWith('agent.team.task.delta', expect.any(Object))
+    // A single batch event carries all deltas for the task.
+    expect(broadcastSpy).toHaveBeenCalledWith('agent.team.task.delta_batch', {
+      runId: run.id,
+      taskId: state.tasks[0].id,
+      deltas: ['chunk 1', 'chunk 2', 'chunk 3']
+    })
+
+    // DB history still records every task_progress individually.
+    const events = service.listRunEvents(run.id)
+    const progressEvents = events.filter((e) => e.type === 'task_progress')
+    expect(progressEvents).toHaveLength(3)
+    expect(progressEvents.map((e) => e.payload.delta)).toEqual(['chunk 1', 'chunk 2', 'chunk 3'])
+  })
+
+  it('flushes pending deltas ahead of a non-delta event so ordering is preserved', async () => {
+    const team = makeTeamDomain(teamId, memberId)
+    decomposeMock.mockResolvedValue({ plan: makePlan(team, 'order test'), raw: '- order' })
+    executeTaskMock.mockImplementation(async (_task: any, _spec: any, _signal: any, onDelta: any) => {
+      onDelta('early delta')
+      return 'output'
+    })
+    leaderTextMock.mockResolvedValue('synthesized')
+
+    const run = await service.startRun(teamId, 'order test')
+    const ctrl = (service as any).runControllers.get(run.id)
+    await ctrl.promise
+
+    const broadcastCalls = broadcastSpy.mock.calls.map(([event]) => event)
+    const batchIndex = broadcastCalls.indexOf('agent.team.task.delta_batch')
+    const completedIndex = broadcastCalls.indexOf('agent.team.task.completed')
+    expect(batchIndex).toBeGreaterThanOrEqual(0)
+    expect(completedIndex).toBeGreaterThan(batchIndex)
+  })
+
   it('persists run state across restart (re-read from DB)', async () => {
     const team = makeTeamDomain(teamId, memberId)
     decomposeMock.mockResolvedValue({ plan: makePlan(team, 'persist'), raw: '- persist' })

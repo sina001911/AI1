@@ -761,6 +761,8 @@ export type AiEventSchemas = {
   'agent.team.task.queued': { runId: string; taskId: string; title: string }
   'agent.team.task.started': { runId: string; taskId: string }
   'agent.team.task.delta': { runId: string; taskId: string; delta: string }
+  /** Batched task-progress deltas flushed periodically during an active run. */
+  'agent.team.task.delta_batch': { runId: string; taskId: string; deltas: string[] }
   'agent.team.task.completed': { runId: string; taskId: string; output: string }
   'agent.team.task.failed': { runId: string; taskId: string; error: string }
   'agent.team.task.cancelled': { runId: string; taskId: string }

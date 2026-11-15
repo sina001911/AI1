@@ -1,14 +1,14 @@
 import { v4 as uuidv4 } from 'uuid'
 
-import { createId } from '@cherrystudio/agent-team/team'
 import { application } from '@application'
-import { createInMemoryArtifactRegistry } from '@cherrystudio/agent-team/registry'
-import { createInMemoryProjectWorkspace } from '@cherrystudio/agent-team/projectWorkspace'
 import { createSharedContext } from '@cherrystudio/agent-team/context'
 import { startOrchestrate } from '@cherrystudio/agent-team/execution'
 import { assignTasks } from '@cherrystudio/agent-team/plan'
+import { createInMemoryProjectWorkspace } from '@cherrystudio/agent-team/projectWorkspace'
+import { createInMemoryArtifactRegistry } from '@cherrystudio/agent-team/registry'
 import { buildReviewPrompt } from '@cherrystudio/agent-team/review'
 import { buildSynthesisPrompt } from '@cherrystudio/agent-team/synthesis'
+import { createId } from '@cherrystudio/agent-team/team'
 import type {
   Artifact,
   ExecutionPlan,
@@ -48,6 +48,9 @@ import type {
 import type { IpcEventName } from '@shared/ipc/schemas/ipcSchemas'
 
 const logger = loggerService.withContext('AgentTeam:AgentTeamService')
+
+/** Flush buffered task-progress deltas at most this often during an active run. */
+const DELTA_FLUSH_INTERVAL_MS = 50
 
 /** A run that is currently executing or paused. */
 interface RunController {
@@ -402,16 +405,23 @@ export class AgentTeamService extends BaseService {
     { resolve: (decision: { approved: boolean; reason?: string }) => void }
   >()
   /** Pending tool-approval decisions, keyed by `runId:toolName:specialistId`. */
-  private readonly pendingToolApprovals = new Map<
-    string,
-    { resolve: (approved: boolean) => void }
-  >()
+  private readonly pendingToolApprovals = new Map<string, { resolve: (approved: boolean) => void }>()
+  /**
+   * Buffered `task_progress` deltas awaiting flush, keyed by runId → taskId.
+   * Deltas are broadcast as a single `agent.team.task.delta_batch` event on a
+   * short timer (DELTA_FLUSH_INTERVAL_MS) or immediately ahead of any
+   * non-delta event for the same run, so ordering is preserved while cutting
+   * IPC traffic during high-frequency model streaming.
+   */
+  private readonly pendingDeltas = new Map<string, Map<string, string[]>>()
+  private deltaFlushTimer: NodeJS.Timeout | null = null
 
   async onReady(): Promise<void> {
     logger.info('AgentTeamService ready')
   }
 
   async onStop(): Promise<void> {
+    this.flushAllDeltas()
     for (const controller of this.runControllers.values()) {
       controller.abortController.abort()
     }
@@ -771,12 +781,7 @@ export class AgentTeamService extends BaseService {
    * pending (already decided, or the run is gone) so the renderer can report
    * a clean "nothing to approve" instead of a thrown error.
    */
-  respondToolApproval(
-    runId: string,
-    toolName: string,
-    specialistId: string,
-    approved: boolean
-  ): boolean {
+  respondToolApproval(runId: string, toolName: string, specialistId: string, approved: boolean): boolean {
     const key = `${runId}:${toolName}:${specialistId}`
     const pending = this.pendingToolApprovals.get(key)
     if (!pending) return false
@@ -935,6 +940,21 @@ export class AgentTeamService extends BaseService {
 
   private handleRunEvent(event: TeamEvent): void {
     const runId = event.runId
+    if (event.type === 'task_progress') {
+      // Buffer high-frequency progress deltas; they are flushed as a single
+      // delta_batch event on the timer or ahead of the next non-delta event.
+      teamRepository.appendEvent({
+        runId,
+        type: event.type,
+        payload: { runId, taskId: event.taskId, delta: event.delta },
+        createdAt: Date.now()
+      })
+      this.bufferDelta(runId, event.taskId, event.delta)
+      return
+    }
+    // A non-delta event flushes any pending deltas for this run first so the
+    // UI observes progress before the completion/failure event that follows.
+    this.flushDeltasForRun(runId)
     const mapped = mapTeamEventToIpc(event)
     teamRepository.appendEvent({
       runId,
@@ -944,6 +964,47 @@ export class AgentTeamService extends BaseService {
     })
     if (mapped) this.broadcastIpc(mapped.event, mapped.payload)
     this.persistTaskState(event)
+  }
+
+  /** Buffer a task-progress delta instead of broadcasting it immediately. */
+  private bufferDelta(runId: string, taskId: string, delta: string): void {
+    let byTask = this.pendingDeltas.get(runId)
+    if (!byTask) {
+      byTask = new Map()
+      this.pendingDeltas.set(runId, byTask)
+    }
+    const deltas = byTask.get(taskId) ?? []
+    deltas.push(delta)
+    byTask.set(taskId, deltas)
+    this.scheduleDeltaFlush()
+  }
+
+  /** Flush every buffered delta for `runId` as batch events, clearing the buffer. */
+  private flushDeltasForRun(runId: string): void {
+    const byTask = this.pendingDeltas.get(runId)
+    if (!byTask) return
+    this.pendingDeltas.delete(runId)
+    for (const [taskId, deltas] of byTask) {
+      this.broadcastIpc('agent.team.task.delta_batch', { runId, taskId, deltas })
+    }
+  }
+
+  /** Flush all buffered deltas across all runs (timer callback / shutdown). */
+  private flushAllDeltas(): void {
+    this.deltaFlushTimer = null
+    for (const [runId, byTask] of this.pendingDeltas) {
+      for (const [taskId, deltas] of byTask) {
+        this.broadcastIpc('agent.team.task.delta_batch', { runId, taskId, deltas })
+      }
+    }
+    this.pendingDeltas.clear()
+  }
+
+  /** Arm the periodic flush timer if it is not already armed. */
+  private scheduleDeltaFlush(): void {
+    if (this.deltaFlushTimer) return
+    this.deltaFlushTimer = setTimeout(() => this.flushAllDeltas(), DELTA_FLUSH_INTERVAL_MS)
+    this.deltaFlushTimer.unref?.()
   }
 
   /** Push task status/output/error from a domain event back into the task row. */
