@@ -226,7 +226,7 @@ function BrowserHistoryContent({ onOpenPage }: { onOpenPage: () => void }) {
                       </span>
                       <span
                         className="@sm:inline hidden max-w-[30%] shrink-0 truncate text-muted-foreground text-xs"
-                        dir="ltr"
+                        dir="auto"
                         aria-hidden="true">
                         {host}
                       </span>
