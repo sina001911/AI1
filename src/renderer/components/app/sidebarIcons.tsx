@@ -1,5 +1,7 @@
 import type { LucideProps } from 'lucide-react'
 import {
+  BarChart,
+  BookOpen,
   BotMessageSquare,
   Code,
   Database,
@@ -17,6 +19,7 @@ import {
   Palette,
   Rocket,
   Settings,
+  Sliders,
   Sparkles,
   Users,
   Wrench
@@ -36,18 +39,22 @@ const CodeMateIcon: SidebarIconComponent = (props) => <Code {...props} viewBox="
  * components; the navigation data and logic live in `@renderer/utils/sidebar`.
  */
 export const SIDEBAR_ICON_COMPONENTS = {
+  home_dashboard: LayoutGrid,
   assistants: MessageSquare,
   agents: MousePointerClick,
+  studio: Users,
   paintings: Palette,
+  creative_lab: Sparkles,
+  media_tools: Sliders,
+  data_analyst: BarChart,
+  prompts_library: BookOpen,
   translate: Languages,
   mini_app: LayoutGrid,
   knowledge: FileSearch,
   files: Folder,
   code_tools: CodeMateIcon,
   notes: NotepadText,
-  studio: Users,
   workflows: Rocket,
-  creative_lab: Sparkles,
   explore: Wrench,
   personalization: Settings
 } satisfies Record<SidebarAppId, SidebarIconComponent>

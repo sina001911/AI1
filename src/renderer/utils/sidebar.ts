@@ -52,12 +52,8 @@ function getConversationSearchParamFromUrl(url: string, name: string): string | 
  */
 const SIDEBAR_APP_DEFINITIONS = [
   {
-    id: 'agents',
-    routePrefix: '/app/agents',
-    conversationRoute: {
-      keyFromUrl: (url) => getConversationSearchParamFromUrl(url, CONVERSATION_ROUTES.agent.keyParam),
-      urlForKey: (key) => conversationRouteUrl({ conversationType: 'agent', conversationId: key })
-    }
+    id: 'home_dashboard',
+    routePrefix: '/app/home'
   },
   {
     id: 'assistants',
@@ -70,9 +66,37 @@ const SIDEBAR_APP_DEFINITIONS = [
     }
   },
   {
+    id: 'studio',
+    routePrefix: '/app/studio'
+  },
+  {
+    id: 'agents',
+    routePrefix: '/app/agents',
+    conversationRoute: {
+      keyFromUrl: (url) => getConversationSearchParamFromUrl(url, CONVERSATION_ROUTES.agent.keyParam),
+      urlForKey: (key) => conversationRouteUrl({ conversationType: 'agent', conversationId: key })
+    }
+  },
+  {
     id: 'paintings',
     routePrefix: '/app/paintings',
     resolveUrl: ({ defaultPaintingProvider }) => `/app/paintings/${defaultPaintingProvider}`
+  },
+  {
+    id: 'creative_lab',
+    routePrefix: '/app/creative-lab'
+  },
+  {
+    id: 'media_tools',
+    routePrefix: '/app/media-tools'
+  },
+  {
+    id: 'data_analyst',
+    routePrefix: '/app/data-analyst'
+  },
+  {
+    id: 'prompts_library',
+    routePrefix: '/app/prompts'
   },
   {
     id: 'translate',
@@ -100,16 +124,8 @@ const SIDEBAR_APP_DEFINITIONS = [
     routePrefix: '/app/notes'
   },
   {
-    id: 'studio',
-    routePrefix: '/app/studio'
-  },
-  {
     id: 'workflows',
     routePrefix: '/app/workflows'
-  },
-  {
-    id: 'creative_lab',
-    routePrefix: '/app/creative-lab'
   },
   {
     id: 'explore',
