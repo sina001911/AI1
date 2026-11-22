@@ -29,6 +29,8 @@ export const IpcErrorCode = {
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   /** Sender frame failed the source-trust gate (`validateSender`). */
   FORBIDDEN_SENDER: 'FORBIDDEN_SENDER',
+  /** Circuit breaker is open for the requested route. */
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   /** Catch-all for any non-`IpcError` throw. */
   INTERNAL: 'INTERNAL'
 } as const

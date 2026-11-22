@@ -112,6 +112,10 @@ export class CacheService {
   private persistDirty = false
   private readonly PERSIST_SAVE_DEBOUNCE_MS = 350
 
+  // Persist cache size-based LRU eviction
+  private persistAccessTimes = new Map<string, number>()
+  private readonly PERSIST_MAX_SIZE_BYTES = 2 * 1024 * 1024 // 2 MB
+
   // Shared cache ready state for initialization sync
   private sharedCacheReady = false
   private sharedCacheReadyCallbacks: Array<() => void> = []
@@ -655,6 +659,7 @@ export class CacheService {
    * @returns Cached value or default value if not found
    */
   getPersist<K extends RendererPersistCacheKey>(key: K): RendererPersistCacheSchema[K] {
+    this.persistAccessTimes.set(key, Date.now())
     const value = this.persistCache.get(key)
     if (value !== undefined) {
       return value
@@ -695,6 +700,7 @@ export class CacheService {
     }
 
     this.persistCache.set(key, nextValue)
+    this.persistAccessTimes.set(key, Date.now())
     this.notifySubscribers(key)
 
     // Broadcast to other windows — the resolved value, never the updater itself
@@ -1118,6 +1124,8 @@ export class CacheService {
    */
   private savePersistCache(): void {
     try {
+      this.evictPersistCacheIfOverSize()
+
       const data: Record<string, any> = {}
       for (const [key, value] of this.persistCache.entries()) {
         data[key] = value
@@ -1125,18 +1133,37 @@ export class CacheService {
 
       const jsonData = JSON.stringify(data)
       const size = jsonData.length
-      if (size > 1024 * 1024 * 2) {
-        logger.warn(
-          `Persist cache is too large (${(size / (1024 * 1024)).toFixed(
-            2
-          )} MB), this may cause performance issues, and may cause data loss, please check your persist cache and reduce the size`
-        )
-      }
-
       localStorage.setItem(STORAGE_PERSIST_KEY, jsonData)
       logger.verbose(`Saved persist cache to localStorage, size: ${(size / (1024 * 1024)).toFixed(2)} MB`)
     } catch (error) {
       logger.error('Failed to save persist cache:', error as Error)
+    }
+  }
+
+  /**
+   * LRU eviction for persist cache: when serialized size exceeds the threshold,
+   * drop the least-recently-accessed entries (skipping keys held by active hooks)
+   * until the size is back under the limit.
+   */
+  private evictPersistCacheIfOverSize(): void {
+    const data: Record<string, any> = {}
+    for (const [key, value] of this.persistCache.entries()) {
+      data[key] = value
+    }
+    let size = JSON.stringify(data).length
+    if (size <= this.PERSIST_MAX_SIZE_BYTES) return
+
+    const evictable = Array.from(this.persistAccessTimes.entries())
+      .filter(([key]) => !this.activeHookCounts.get(key))
+      .sort(([, a], [, b]) => a - b)
+
+    for (const [key] of evictable) {
+      if (size <= this.PERSIST_MAX_SIZE_BYTES) break
+      this.persistCache.delete(key as RendererPersistCacheKey)
+      this.persistAccessTimes.delete(key)
+      delete data[key]
+      size = JSON.stringify(data).length
+      logger.verbose(`Evicted persist cache key "${key}" (size now ${(size / 1024).toFixed(1)} KB)`)
     }
   }
 

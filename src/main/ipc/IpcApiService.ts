@@ -17,6 +17,62 @@ import { IpcRouter } from './IpcRouter'
 
 const logger = loggerService.withContext('IpcApiService')
 
+// Circuit breaker thresholds per route. Closed -> open after N consecutive failures;
+// open routes auto-probe to half-open after the cool-down, then back to closed on
+// a success or open again on another failure.
+const CIRCUIT_FAILURE_THRESHOLD = 5
+const CIRCUIT_COOL_DOWN_MS = 30_000
+
+type CircuitState = 'closed' | 'open' | 'half-open'
+
+interface CircuitEntry {
+  state: CircuitState
+  failures: number
+  lastFailureAt: number
+}
+
+const circuitBreakers = new Map<string, CircuitEntry>()
+
+function circuitAllows(route: string): boolean {
+  const entry = circuitBreakers.get(route)
+  if (!entry) return true
+  if (entry.state === 'closed') return true
+  if (entry.state === 'open') {
+    if (Date.now() - entry.lastFailureAt >= CIRCUIT_COOL_DOWN_MS) {
+      entry.state = 'half-open'
+      entry.failures = 0
+      return true
+    }
+    return false
+  }
+  // half-open: allow exactly one probe
+  return true
+}
+
+function circuitRecordSuccess(route: string): void {
+  const entry = circuitBreakers.get(route)
+  if (!entry) return
+  if (entry.state === 'half-open') {
+    entry.state = 'closed'
+    entry.failures = 0
+  } else {
+    entry.failures = Math.max(0, entry.failures - 1)
+  }
+}
+
+function circuitRecordFailure(route: string): void {
+  let entry = circuitBreakers.get(route)
+  if (!entry) {
+    entry = { state: 'closed', failures: 0, lastFailureAt: 0 }
+    circuitBreakers.set(route, entry)
+  }
+  entry.failures++
+  entry.lastFailureAt = Date.now()
+  if (entry.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+    entry.state = 'open'
+  }
+}
+
 /**
  * Transport coordinator for the IpcApi RPC channel — the command-side peer of
  * `DataApiService`, and like it a `BeforeReady` service so its handler is
@@ -68,11 +124,19 @@ export class IpcApiService extends BaseService {
       return { ok: false, error: error.toJSON() }
     }
 
+    if (!circuitAllows(route)) {
+      const error = new IpcError(IpcErrorCode.SERVICE_UNAVAILABLE, `Circuit breaker open for route: ${route}`)
+      logger.warn('Circuit breaker open, rejecting IpcApi request', { route })
+      return { ok: false, error: error.toJSON() }
+    }
+
     const t0 = DIAGNOSTICS_ENABLED ? performance.now() : 0
     try {
       const data = await this.router.dispatch(route, input, this.makeContext(event))
+      circuitRecordSuccess(route)
       return { ok: true, data }
     } catch (e) {
+      circuitRecordFailure(route)
       // Never throw to ipcMain.handle: Electron's reject drops code/data, so serialize into the result.
       return { ok: false, error: IpcError.from(e).toJSON() }
     } finally {
