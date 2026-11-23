@@ -1,6 +1,7 @@
 import type { IpcMainEvent } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { application } from '@application'
 /**
  * Tests for the shared-tier TTL synchronization contract (issue #17050).
  *
@@ -18,7 +19,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  *  - boundaries: the renderer-origin relay path and onStop stay outside the
  *    unified eviction outlet (no double broadcast, no teardown broadcast).
  */
-import type { CacheSyncMessage } from '@shared/data/cache/cacheTypes'
 import { IpcChannel } from '@shared/IpcChannel'
 
 // Undo the global mock from main.setup.ts — we want the REAL CacheService
@@ -62,11 +62,13 @@ vi.mock('@main/core/lifecycle', () => ({
 const STATE_KEY = 'jobs.state.job-1' as const
 const PROGRESS_KEY = 'jobs.progress.job-1' as const
 
-// Trusted sender shape for the in-handler source-trust gate (validateSender);
-// the global application mock resolves getPath('app.root') to '/mock/app.root'.
+// Trusted sender shape for the in-handler source-trust gate (validateSender).
+// On Windows, `file:///mock/app.root/index.html` is not a valid file URL
+// (no drive letter) and fileURLToPath throws — use a Windows-style path.
+// application.getPath('app.root') is overridden to match in beforeEach below.
 const trustedEvent = {
   sender: { getType: () => 'window' },
-  senderFrame: { url: 'file:///mock/app.root/index.html', parent: null }
+  senderFrame: { url: 'file:///C:/mock/app.root/index.html', parent: null }
 } as unknown as IpcMainEvent
 
 const BASE = 1_000_000
@@ -76,8 +78,6 @@ describe('CacheService shared-tier TTL sync', () => {
   let service: any
   let send: ReturnType<typeof vi.fn<(...args: any[]) => any>>
   let now: number
-
-  const lastMessage = (): CacheSyncMessage => send.mock.calls.at(-1)![1] as CacheSyncMessage
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -93,10 +93,16 @@ describe('CacheService shared-tier TTL sync', () => {
     BrowserWindow.getAllWindows = vi.fn(() => [{ isDestroyed: () => false, id: 99, webContents: { send } }])
     BrowserWindow.fromWebContents = vi.fn(() => null)
 
+    // Override app.root path for validateSender — must match trustedEvent.url.
+    vi.spyOn(application, 'getPath').mockImplementation((key: string) =>
+      key === 'app.root' ? 'C:/mock/app.root' : `/mock/${key}`
+    )
+
     const { CacheService } = await import('../CacheService')
     service = new CacheService()
     await service.onInit()
     send.mockClear()
+    ;(service as any).pendingSyncs = []
   })
 
   afterEach(async () => {
@@ -119,9 +125,13 @@ describe('CacheService shared-tier TTL sync', () => {
       send.mockClear()
 
       service.setShared(PROGRESS_KEY, { progress: 50 }, secondTtl)
+      ;(service as any).flushSyncBatch()
 
       expect(send).toHaveBeenCalledTimes(1)
-      expect(lastMessage()).toEqual({
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(2)
+      expect(batch[1]).toMatchObject({
         type: 'shared',
         key: PROGRESS_KEY,
         value: { progress: 50 },
@@ -136,9 +146,13 @@ describe('CacheService shared-tier TTL sync', () => {
 
       now = BASE + 10_000
       service.setShared(PROGRESS_KEY, { progress: 50 }, TTL) // heartbeat: same value, renewed TTL
+      ;(service as any).flushSyncBatch()
 
       expect(cb).not.toHaveBeenCalled()
-      expect(send).toHaveBeenCalledTimes(2) // initial set + TTL-only sync
+      expect(send).toHaveBeenCalledTimes(1) // batched into one Cache_SyncBatch
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(2)
     })
 
     it('is a full no-op when value and expireAt are both unchanged', () => {
@@ -156,14 +170,19 @@ describe('CacheService shared-tier TTL sync', () => {
       service.subscribeSharedChange(PROGRESS_KEY, cb)
       now = BASE + 5_000 // entry expired
       send.mockClear()
+      ;(service as any).pendingSyncs = []
 
       service.setShared(PROGRESS_KEY, { progress: 100 }, 1_000)
+      ;(service as any).flushSyncBatch()
 
       // Full broadcast + subscriber fire with oldValue=undefined — NOT a
       // silent TTL-only sync (would happen if the implementation compared
       // against the raw entry instead of the TTL-aware peek).
       expect(send).toHaveBeenCalledTimes(1)
-      expect(lastMessage()).toEqual({
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(1)
+      expect(batch[0]).toEqual({
         type: 'shared',
         key: PROGRESS_KEY,
         value: { progress: 100 },
@@ -178,20 +197,24 @@ describe('CacheService shared-tier TTL sync', () => {
   // ---------------------------------------------------------------------------
 
   describe('expired-entry eviction broadcasts a tombstone (fix A2)', () => {
-    const expectSingleTombstone = (key: string) => {
+    const expectSingleTombstoneBatch = (key: string) => {
       expect(send).toHaveBeenCalledTimes(1)
-      expect(lastMessage()).toEqual({ type: 'shared', key, value: undefined })
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toEqual([{ type: 'shared', key, value: undefined }])
     }
 
     beforeEach(() => {
       service.setShared(STATE_KEY, { id: 'job-1', status: 'completed' }, TTL)
       now = BASE + TTL + 1 // entry expired
       send.mockClear()
+      ;(service as any).pendingSyncs = []
     })
 
     it('path 1: getShared on an expired entry', () => {
       expect(service.getShared(STATE_KEY)).toBeUndefined()
-      expectSingleTombstone(STATE_KEY)
+      ;(service as any).flushSyncBatch()
+      expectSingleTombstoneBatch(STATE_KEY)
 
       // Entry is physically gone — a second read broadcasts nothing more.
       send.mockClear()
@@ -201,13 +224,15 @@ describe('CacheService shared-tier TTL sync', () => {
 
     it('path 2: hasShared on an expired entry', () => {
       expect(service.hasShared(STATE_KEY)).toBe(false)
-      expectSingleTombstone(STATE_KEY)
+      ;(service as any).flushSyncBatch()
+      expectSingleTombstoneBatch(STATE_KEY)
     })
 
     it('path 3: the GC sweep', () => {
       expect(intervalCallbacks.length).toBeGreaterThan(0)
       intervalCallbacks.forEach((run) => run())
-      expectSingleTombstone(STATE_KEY)
+      ;(service as any).flushSyncBatch()
+      expectSingleTombstoneBatch(STATE_KEY)
     })
 
     it('path 4: getAllShared (renderer init sync)', () => {
@@ -215,12 +240,14 @@ describe('CacheService shared-tier TTL sync', () => {
       const all = handler(trustedEvent) as Record<string, unknown>
 
       expect(all[STATE_KEY]).toBeUndefined()
-      expectSingleTombstone(STATE_KEY)
+      ;(service as any).flushSyncBatch()
+      expectSingleTombstoneBatch(STATE_KEY)
     })
 
     it('path 5: deleteShared hitting an already-expired entry', () => {
       expect(service.deleteShared(STATE_KEY)).toBe(true)
-      expectSingleTombstone(STATE_KEY)
+      ;(service as any).flushSyncBatch()
+      expectSingleTombstoneBatch(STATE_KEY)
     })
 
     it('deleteShared on a truly absent key broadcasts nothing', () => {
@@ -234,6 +261,7 @@ describe('CacheService shared-tier TTL sync', () => {
 
       expect(service.getShared(STATE_KEY)).toBeUndefined()
       intervalCallbacks.forEach((run) => run())
+      ;(service as any).flushSyncBatch()
 
       expect(cb).not.toHaveBeenCalled()
     })
@@ -243,11 +271,13 @@ describe('CacheService shared-tier TTL sync', () => {
       service.subscribeSharedChange(STATE_KEY, cb)
 
       service.deleteShared(STATE_KEY) // expired → tombstone only
+      ;(service as any).flushSyncBatch()
       expect(cb).not.toHaveBeenCalled()
 
       service.setShared(STATE_KEY, { id: 'job-1', status: 'running' })
       cb.mockClear()
       service.deleteShared(STATE_KEY) // live → tombstone + subscriber fire
+      ;(service as any).flushSyncBatch()
       expect(cb).toHaveBeenCalledWith(undefined, { id: 'job-1', status: 'running' }, STATE_KEY)
     })
 
@@ -256,13 +286,17 @@ describe('CacheService shared-tier TTL sync', () => {
       service.setShared(PROGRESS_KEY, { progress: 100 }, TTL)
       now = BASE + 2 * TTL + 2
       send.mockClear()
+      ;(service as any).pendingSyncs = []
 
       intervalCallbacks.forEach((run) => run())
+      ;(service as any).flushSyncBatch()
 
-      const messages = send.mock.calls.map((call) => call[1] as CacheSyncMessage)
-      expect(messages).toContainEqual({ type: 'shared', key: STATE_KEY, value: undefined })
-      expect(messages).toContainEqual({ type: 'shared', key: PROGRESS_KEY, value: undefined })
-      expect(messages).toHaveLength(2)
+      expect(send).toHaveBeenCalledTimes(1)
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(2)
+      expect(batch).toContainEqual({ type: 'shared', key: STATE_KEY, value: undefined })
+      expect(batch).toContainEqual({ type: 'shared', key: PROGRESS_KEY, value: undefined })
     })
   })
 
@@ -303,6 +337,97 @@ describe('CacheService shared-tier TTL sync', () => {
       await service.onStop()
 
       expect(send).not.toHaveBeenCalled()
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // Shared-cache sync batching
+  // ---------------------------------------------------------------------------
+
+  describe('shared-cache sync batching', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(BASE)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('buffers main-origin changes and flushes as one Cache_SyncBatch', () => {
+      service.setShared(STATE_KEY, { id: 'job-1', status: 'running' })
+      service.setShared(PROGRESS_KEY, { progress: 50 })
+      service.setShared(STATE_KEY, { id: 'job-1', status: 'completed' })
+
+      // Buffered: nothing sent yet
+      expect(send).not.toHaveBeenCalled()
+
+      vi.advanceTimersByTime(100)
+
+      expect(send).toHaveBeenCalledTimes(1)
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(3)
+      expect(batch[0]).toMatchObject({ type: 'shared', key: STATE_KEY, value: { id: 'job-1', status: 'running' } })
+      expect(batch[1]).toMatchObject({ type: 'shared', key: PROGRESS_KEY, value: { progress: 50 } })
+      expect(batch[2]).toMatchObject({ type: 'shared', key: STATE_KEY, value: { id: 'job-1', status: 'completed' } })
+    })
+
+    it('uses a single flush timer across rapid successive writes', () => {
+      service.setShared(STATE_KEY, { id: 'job-1', status: 'running' })
+      vi.advanceTimersByTime(10)
+      service.setShared(PROGRESS_KEY, { progress: 50 })
+      vi.advanceTimersByTime(10)
+      service.setShared(STATE_KEY, { id: 'job-1', status: 'completed' })
+
+      // Still buffered — only one flush timer is armed
+      expect(send).not.toHaveBeenCalled()
+
+      vi.advanceTimersByTime(40) // crosses the 50ms threshold from the first setTimeout
+
+      expect(send).toHaveBeenCalledTimes(1)
+      const [channel, batch] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(3)
+    })
+
+    it('renderer-origin relay still sends immediately via Cache_Sync', async () => {
+      const { BrowserWindow } = (await import('electron')) as any
+      BrowserWindow.fromWebContents.mockReturnValue({ id: 42 })
+
+      const listener = ipcListeners.get(IpcChannel.Cache_Sync)!
+      listener(trustedEvent, { type: 'shared', key: STATE_KEY, value: 'from-renderer' })
+
+      expect(send).toHaveBeenCalledTimes(1)
+      const [channel, message] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_Sync)
+      expect(message).toEqual({ type: 'shared', key: STATE_KEY, value: 'from-renderer' })
+    })
+
+    it('does not batch renderer-origin relay with pending main-origin messages', async () => {
+      const { BrowserWindow } = (await import('electron')) as any
+      BrowserWindow.fromWebContents.mockReturnValue({ id: 42 })
+
+      service.setShared(STATE_KEY, { id: 'job-1', status: 'running' })
+      // Main-origin message is buffered, not yet sent
+      expect(send).not.toHaveBeenCalled()
+
+      // Renderer-origin relay sends immediately via Cache_Sync, bypassing the batch
+      const listener = ipcListeners.get(IpcChannel.Cache_Sync)!
+      listener(trustedEvent, { type: 'shared', key: PROGRESS_KEY, value: 'from-renderer' })
+
+      expect(send).toHaveBeenCalledTimes(1)
+      const [channel, message] = send.mock.calls[0]
+      expect(channel).toBe(IpcChannel.Cache_Sync)
+      expect(message).toEqual({ type: 'shared', key: PROGRESS_KEY, value: 'from-renderer' })
+
+      // The buffered main-origin message is still pending
+      vi.advanceTimersByTime(100)
+      expect(send).toHaveBeenCalledTimes(2)
+      const [batchChannel, batch] = send.mock.calls[1]
+      expect(batchChannel).toBe(IpcChannel.Cache_SyncBatch)
+      expect(batch).toHaveLength(1)
+      expect(batch[0]).toMatchObject({ type: 'shared', key: STATE_KEY, value: { id: 'job-1', status: 'running' } })
     })
   })
 })

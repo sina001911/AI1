@@ -231,6 +231,38 @@ describe('CacheService persist tier', () => {
     expect(onDisk[PROBE]).toBe(4)
   })
 
+  it('preserves unchanged keys from disk when only one key changes (no full-map rewrite)', async () => {
+    await initService()
+    service.setPersist(PROBE, 7)
+    vi.advanceTimersByTime(350) // file now has {PROBE: 7}
+
+    const BOUNDS = 'window.bounds' as const
+    service.setPersist(BOUNDS, {
+      main: {
+        x: 100,
+        y: 0,
+        width: 800,
+        height: 600,
+        isMaximized: false,
+        displayBounds: { x: 0, y: 0, width: 1920, height: 1080 }
+      }
+    })
+    vi.advanceTimersByTime(350)
+
+    const onDisk = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'))
+    expect(onDisk[PROBE]).toBe(7) // unchanged key preserved from previous save
+    expect(onDisk[BOUNDS]).toEqual({
+      main: {
+        x: 100,
+        y: 0,
+        width: 800,
+        height: 600,
+        isMaximized: false,
+        displayBounds: { x: 0, y: 0, width: 1920, height: 1080 }
+      }
+    })
+  })
+
   it.each(['5', '"text"', '[1,2,3]', 'null'])(
     'falls back to defaults when the file parses to a non-object (%s)',
     async (raw) => {

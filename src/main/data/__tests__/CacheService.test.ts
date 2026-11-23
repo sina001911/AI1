@@ -1,6 +1,7 @@
 import type { IpcMainEvent } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { application } from '@application'
 /**
  * Tests for CacheService subscription APIs and value-equality semantics.
  *
@@ -66,11 +67,13 @@ const SHARED_EXACT = 'web_search.provider.last_used_key.google' as const
 const SHARED_OTHER = 'web_search.provider.last_used_key.openrouter' as const
 const SHARED_TEMPLATE = 'web_search.provider.last_used_key.${providerId}' as const
 
-// Sender shapes for the in-handler source-trust gate (validateSender); the
-// global application mock resolves getPath('app.root') to '/mock/app.root'.
+// Sender shapes for the in-handler source-trust gate (validateSender).
+// On Windows, `file:///mock/app.root/index.html` is not a valid file URL
+// (no drive letter) and fileURLToPath throws — use a Windows-style path.
+// application.getPath('app.root') is overridden to match in beforeEach below.
 const trustedEvent = {
   sender: { getType: () => 'window' },
-  senderFrame: { url: 'file:///mock/app.root/index.html', parent: null }
+  senderFrame: { url: 'file:///C:/mock/app.root/index.html', parent: null }
 } as unknown as IpcMainEvent
 const untrustedEvent = {
   sender: { getType: () => 'webview' },
@@ -84,6 +87,11 @@ describe('CacheService subscription', () => {
     vi.clearAllMocks()
     ipcListeners.clear()
     ipcHandlers.clear()
+
+    // Override app.root path for validateSender — must match trustedEvent.url.
+    vi.spyOn(application, 'getPath').mockImplementation((key: string) =>
+      key === 'app.root' ? 'C:/mock/app.root' : `/mock/${key}`
+    )
 
     const { CacheService } = await import('../CacheService')
     service = new CacheService()
