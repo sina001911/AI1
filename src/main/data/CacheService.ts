@@ -184,11 +184,23 @@ export class CacheService extends BaseService {
   private gcInterval: Disposable | null = null
   private readonly GC_INTERVAL_MS = 10 * 60 * 1000
 
+  // Shared-cache sync batching: buffers main-origin CacheSyncMessages and flushes
+  // them as a single Cache_SyncBatch broadcast to all windows, collapsing O(windows
+  // × changes) IPC into O(windows × batches).
+  private pendingSyncs: CacheSyncMessage[] = []
+  private syncFlushTimer: NodeJS.Timeout | null = null
+  private readonly SYNC_FLUSH_INTERVAL_MS = 50
+
   // Persist cache (main-authoritative, JSON-backed; independent from renderer persist)
   private persistCache = new Map<string, unknown>()
   private persistSaveTimer: ReturnType<typeof setTimeout> | null = null
   private persistFilePath = ''
   private readonly PERSIST_SAVE_DEBOUNCE_MS = 350
+  // Keys whose in-memory value changed since the last successful disk write.
+  // Only these keys are rewritten on each flush, so a single-key change
+  // (e.g. one window's bounds) does not rewrite the whole persist map —
+  // fixing write amplification on the persist tier.
+  private dirtyPersistKeys = new Set<MainPersistCacheKey>()
   // Main-local change notifier for the persist tier (never relayed to renderers).
   private persistNotifier = new CacheNotifier()
 
@@ -628,6 +640,7 @@ export class CacheService extends BaseService {
       return
     }
     this.persistCache.set(key, value)
+    this.dirtyPersistKeys.add(key)
     this.schedulePersistSave()
     this.persistNotifier.notify(key, value, oldValue)
   }
@@ -724,21 +737,53 @@ export class CacheService extends BaseService {
   }
 
   /**
-   * Synchronously write the whole persist map (atomic temp-file + rename).
-   * Normal cache persistence is best-effort; backup callers can request the
-   * original error so a stale cache.json is never archived as current state.
+   * Synchronously write the persist cache to disk (atomic temp-file + rename).
+   * Only keys that changed since the last save are rewritten; unchanged schema
+   * keys are preserved from the existing file, so a single-key change (e.g. one
+   * window's bounds) does not rewrite the whole persist map — fixing write
+   * amplification on the persist tier. When no file exists yet (first save or
+   * externally-deleted file) the entire in-memory map is written.
    */
   private savePersistSync(options: { throwOnError?: boolean } = {}): void {
     const tempPath = `${this.persistFilePath}.tmp`
     try {
       const snapshot: Record<string, unknown> = {}
-      for (const [key, value] of this.persistCache.entries()) {
-        snapshot[key] = value
+
+      if (fs.existsSync(this.persistFilePath)) {
+        // Preserve on-disk schema keys that did not change in this session so
+        // they are not rewritten. Unknown/stale keys are dropped to keep the
+        // "fixed keys only" contract.
+        try {
+          const existing = JSON.parse(fs.readFileSync(this.persistFilePath, 'utf-8'))
+          if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+            for (const key of Object.keys(existing)) {
+              if (key in DefaultMainPersistCache) {
+                snapshot[key] = existing[key]
+              }
+            }
+          }
+        } catch {
+          // Corrupt disk file — fall back to the full in-memory map.
+          for (const [key, value] of this.persistCache.entries()) {
+            snapshot[key] = value
+          }
+        }
+      } else {
+        // No disk file — write every in-memory key (covers first save).
+        for (const [key, value] of this.persistCache.entries()) {
+          snapshot[key] = value
+        }
       }
 
-      const content = JSON.stringify(snapshot, null, 2)
-      fs.writeFileSync(tempPath, content, 'utf-8')
-      fs.renameSync(tempPath, this.persistFilePath)
+      // Overlay only the keys whose in-memory value changed since the last save.
+      for (const key of this.dirtyPersistKeys) {
+        snapshot[key] = this.persistCache.get(key)
+      }
+
+      this.writePersistFile(snapshot)
+      if (!options.throwOnError) {
+        this.dirtyPersistKeys.clear()
+      }
     } catch (error) {
       try {
         fs.rmSync(tempPath, { force: true })
@@ -750,6 +795,16 @@ export class CacheService extends BaseService {
         throw error
       }
     }
+  }
+
+  /**
+   * Write a JSON snapshot to the persist file via atomic temp-file + rename.
+   */
+  private writePersistFile(snapshot: Record<string, unknown>): void {
+    const tempPath = `${this.persistFilePath}.tmp`
+    const content = JSON.stringify(snapshot, null, 2)
+    fs.writeFileSync(tempPath, content, 'utf-8')
+    fs.renameSync(tempPath, this.persistFilePath)
   }
 
   /**
@@ -765,7 +820,7 @@ export class CacheService extends BaseService {
       return
     }
 
-    if (!fs.existsSync(this.persistFilePath)) {
+    if (this.dirtyPersistKeys.size > 0) {
       this.savePersistSync()
     }
   }
@@ -784,8 +839,16 @@ export class CacheService extends BaseService {
       this.persistSaveTimer = null
     }
 
+    // Backup requires a complete snapshot of all keys — not just dirty ones —
+    // so the archived cache.json always reflects the full current state.
+    const snapshot: Record<string, unknown> = {}
+    for (const [key, value] of this.persistCache.entries()) {
+      snapshot[key] = value
+    }
+
     try {
-      this.savePersistSync({ throwOnError: true })
+      this.writePersistFile(snapshot)
+      this.dirtyPersistKeys.clear()
     } catch (error) {
       if (hadPendingSave) {
         this.schedulePersistSave()
@@ -797,13 +860,51 @@ export class CacheService extends BaseService {
   // ============ IPC Handlers for Cache Synchronization ============
 
   /**
-   * Broadcast sync message to all renderer windows
+   * Broadcast sync message to all renderer windows.
+   *
+   * Main-origin calls (no senderWindowId) are buffered and flushed as a single
+   * Cache_SyncBatch broadcast every SYNC_FLUSH_INTERVAL_MS, collapsing rapid
+   * successive changes into one IPC round-trip per window. Renderer-origin relay
+   * calls (senderWindowId set) are sent immediately via Cache_Sync to preserve
+   * sender-exclusion semantics and low-latency cross-window convergence.
    */
   private broadcastSync(message: CacheSyncMessage, senderWindowId?: number): void {
+    // Renderer-origin relay: send immediately to preserve sender exclusion.
+    if (senderWindowId !== undefined) {
+      const windows = BrowserWindow.getAllWindows()
+      for (const window of windows) {
+        if (!window.isDestroyed() && window.id !== senderWindowId) {
+          window.webContents.send(IpcChannel.Cache_Sync, message)
+        }
+      }
+      return
+    }
+
+    // Main-origin: buffer for batching.
+    this.pendingSyncs.push(message)
+    if (!this.syncFlushTimer) {
+      this.syncFlushTimer = setTimeout(() => this.flushSyncBatch(), this.SYNC_FLUSH_INTERVAL_MS)
+      this.syncFlushTimer.unref?.()
+    }
+  }
+
+  /**
+   * Flush all buffered main-origin sync messages as a single Cache_SyncBatch
+   * broadcast to every window. Called on a timer; also invoked from onStop-adjacent
+   * paths if a synchronous flush is ever needed (currently not — teardown
+   * broadcasts nothing).
+   */
+  private flushSyncBatch(): void {
+    this.syncFlushTimer = null
+    if (this.pendingSyncs.length === 0) return
+
+    const batch = [...this.pendingSyncs]
+    this.pendingSyncs = []
+
     const windows = BrowserWindow.getAllWindows()
     for (const window of windows) {
-      if (!window.isDestroyed() && window.id !== senderWindowId) {
-        window.webContents.send(IpcChannel.Cache_Sync, message)
+      if (!window.isDestroyed()) {
+        window.webContents.send(IpcChannel.Cache_SyncBatch, batch)
       }
     }
   }
