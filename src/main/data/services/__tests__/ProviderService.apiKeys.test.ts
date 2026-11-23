@@ -14,6 +14,14 @@ import { ErrorCode } from '@shared/data/api/errors'
 import { AddProviderApiKeySchema, ReplaceProviderApiKeysSchema } from '@shared/data/api/schemas/providers'
 import { CHERRYAI_PROVIDER_ID } from '@shared/data/presets/cherryai'
 
+vi.mock('electron', () => ({
+  safeStorage: {
+    isEncryptionAvailable: () => true,
+    encryptString: (value: string) => Buffer.from(value),
+    decryptString: (value: Buffer) => value.toString()
+  }
+}))
+
 vi.mock('@main/utils/appEdition', () => ({ getAppEdition: () => 'global' }))
 
 // The API-key mutators are synchronous under better-sqlite3: failing calls throw
@@ -56,8 +64,7 @@ describe('ProviderService API keys', () => {
   }
 
   async function readApiKeys() {
-    const [row] = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, 'openai'))
-    return row?.apiKeys ?? []
+    return providerService.getApiKeys('openai')
   }
 
   async function seedManagedCherryAiProvider() {
@@ -71,11 +78,7 @@ describe('ProviderService API keys', () => {
   }
 
   async function readManagedApiKeys() {
-    const [row] = await dbh.db
-      .select()
-      .from(userProviderTable)
-      .where(eq(userProviderTable.providerId, CHERRYAI_PROVIDER_ID))
-    return row?.apiKeys ?? []
+    return providerService.getApiKeys(CHERRYAI_PROVIDER_ID)
   }
 
   it('adds a new API key as enabled and skips duplicate values', async () => {
@@ -274,10 +277,7 @@ describe('ProviderService API keys', () => {
     })
     providerService.replaceApiKeys('parity-replace', replaceBody.keys)
 
-    const readApiKeysFor = async (providerId: string) => {
-      const [row] = await dbh.db.select().from(userProviderTable).where(eq(userProviderTable.providerId, providerId))
-      return row?.apiKeys ?? []
-    }
+    const readApiKeysFor = async (providerId: string) => providerService.getApiKeys(providerId)
 
     const [addedKey] = await readApiKeysFor('parity-add')
     const [replacedKey] = await readApiKeysFor('parity-replace')

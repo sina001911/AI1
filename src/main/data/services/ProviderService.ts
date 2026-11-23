@@ -7,6 +7,7 @@
  */
 
 import { and, asc, eq, inArray, type SQLWrapper } from 'drizzle-orm'
+import { safeStorage } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 
 import { application } from '@application'
@@ -50,6 +51,35 @@ import { resolveEndpointDialect } from '@shared/utils/provider'
 import { isRetiredProvider } from '../retiredProviders'
 
 const logger = loggerService.withContext('DataApi:ProviderService')
+
+// Encrypt API keys at rest via Electron safeStorage (OS keychain). Falls back to
+// plaintext with a warning when encryption is unavailable (e.g. Linux without a
+// keyring), matching the pattern used by CopilotService and MCP OAuth storage.
+function encryptApiKey(key: string): string {
+  if (!safeStorage.isEncryptionAvailable()) {
+    logger.warn('safeStorage encryption unavailable; storing API key in plaintext')
+    return key
+  }
+  return safeStorage.encryptString(key).toString('base64')
+}
+
+function decryptApiKey(encrypted: string): string {
+  if (!safeStorage.isEncryptionAvailable()) {
+    return encrypted
+  }
+  // Only attempt decryption for values that look like base64-encoded safeStorage
+  // ciphertext. Plaintext keys (legacy rows written before encryption, or
+  // test-seeded keys) pass through unchanged.
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encrypted) || encrypted.length % 4 !== 0) {
+    return encrypted
+  }
+  try {
+    return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
+  } catch {
+    // Corrupt or non-safeStorage ciphertext; treat as-is.
+    return encrypted
+  }
+}
 
 function applyJsonMergePatch(target: unknown, patch: unknown): unknown {
   if (patch === null || typeof patch !== 'object' || Array.isArray(patch)) return patch
@@ -187,7 +217,7 @@ function normalizeApiKeyEntry(entry: ApiKeyEntry): ApiKeyEntry {
 
   return {
     id: entry.id,
-    key,
+    key: encryptApiKey(key),
     ...(entry.label ? { label: entry.label } : {}),
     isEnabled: entry.isEnabled
   }
@@ -677,7 +707,10 @@ class ProviderService {
 
     assertProviderAvailable(row, providerId)
 
-    const allKeys = row.apiKeys ?? []
+    const allKeys = (row.apiKeys ?? []).map((entry) => ({
+      ...entry,
+      key: decryptApiKey(entry.key)
+    }))
     if (override !== undefined) {
       const matched = allKeys.find((entry) => entry.key === override)
       return matched ? toResolvedProviderApiKey(override, 'matched', matched) : unknownCredential(override)
@@ -732,7 +765,10 @@ class ProviderService {
 
     assertProviderAvailable(row, providerId)
 
-    const apiKeys = row.apiKeys ?? []
+    const apiKeys = (row.apiKeys ?? []).map((entry) => ({
+      ...entry,
+      key: decryptApiKey(entry.key)
+    }))
     return options.enabled ? apiKeys.filter((k) => k.isEnabled) : apiKeys
   }
 
@@ -768,14 +804,14 @@ class ProviderService {
 
       const existingKeys = row.apiKeys ?? []
 
-      // Skip if key value already exists
-      if (existingKeys.some((k) => k.key === key)) {
+      // Skip if key value already exists (compare decrypted values since storage is encrypted)
+      if (existingKeys.some((k) => decryptApiKey(k.key) === key)) {
         return { provider: rowToRuntimeProvider(row), added: false }
       }
 
       const newEntry = {
         id: uuidv4(),
-        key,
+        key: encryptApiKey(key),
         ...(label ? { label } : {}),
         isEnabled: true
       }
@@ -878,7 +914,10 @@ class ProviderService {
         throw DataApiErrorFactory.validation({ key: ['API key cannot be empty'] })
       }
 
-      if (nextKeyValue && existingKeys.some((entry, index) => index !== keyIndex && entry.key === nextKeyValue)) {
+      if (
+        nextKeyValue &&
+        existingKeys.some((entry, index) => index !== keyIndex && decryptApiKey(entry.key) === nextKeyValue)
+      ) {
         throw DataApiErrorFactory.conflict('API key already exists', 'API key')
       }
 
@@ -890,7 +929,7 @@ class ProviderService {
         const updatedEntry = {
           ...entry,
           ...(updates.isEnabled !== undefined ? { isEnabled: updates.isEnabled } : {}),
-          ...(nextKeyValue ? { key: nextKeyValue } : {})
+          ...(nextKeyValue ? { key: encryptApiKey(nextKeyValue) } : {})
         }
 
         if (updates.label !== undefined) {
