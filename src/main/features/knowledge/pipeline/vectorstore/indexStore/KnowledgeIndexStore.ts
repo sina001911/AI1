@@ -230,6 +230,12 @@ export class KnowledgeIndexStore {
         this.collectIndexGarbage(tx)
       }
     })
+
+    // Populate ANN shadow after rebuild commits. Skipped if useAnnShadow is off
+    // or if this is a BM25-only base (no embeddings to shadow).
+    if (this.useAnnShadow && input.usesEmbeddings) {
+      backfillAnnShadow(this.driver)
+    }
   }
 
   /**
@@ -289,6 +295,8 @@ export class KnowledgeIndexStore {
     this.driver.transaction((tx) => {
       this.collectIndexGarbage(tx)
     })
+    // Sweep orphaned ANN shadow rows after the material cleanup.
+    sweepAnnShadow(this.driver)
   }
 
   /**

@@ -18,6 +18,12 @@ export interface CreateKnowledgeIndexStoreOptions {
    */
   dimension?: number | null
   /**
+   * When true, vector/hybrid searches use ANN first with brute-force fallback.
+   * Defaults to false for safe rollout — the shadow table is built but not used
+   * for searches until enabled.
+   */
+  useAnnShadow?: boolean
+  /**
    * Runs synchronously on the freshly opened store, INSIDE this factory's
    * close-on-throw region, before the store is returned. The runtime passes its
    * empty-index diagnostic here so a throwing probe still closes the driver (a
@@ -69,7 +75,11 @@ export function createKnowledgeIndexStoreAtPath(
     // Stamp + verify the meta identity row before handing out the store, so an
     // index.sqlite swapped in from another base is rejected here (§4.1).
     ensureIndexMeta(driver, { baseId: options.baseId })
-    const store = new KnowledgeIndexStore(driver, betterSqlite3VectorIndex)
+    const store = new KnowledgeIndexStore(
+      driver,
+      betterSqlite3VectorIndex,
+      options.useAnnShadow ?? false
+    )
     // Runs inside this close-on-throw region so a throwing hook still closes the driver.
     options.afterOpen?.(store)
     return store

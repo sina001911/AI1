@@ -124,6 +124,7 @@ export class KnowledgeVectorStoreService extends BaseService {
     return createKnowledgeIndexStoreAtPath(getKnowledgeVectorStoreFilePathSync(base.id), {
       baseId: base.id,
       dimension: base.dimensions,
+      useAnnShadow: true,
       afterOpen: (store) => this.reportInvisibleIndexContents(store, base.id)
     })
   }
