@@ -16,11 +16,14 @@ import { Route as AppBrowserRouteImport } from './routes/app/browser'
 import { Route as AppChatRouteImport } from './routes/app/chat'
 import { Route as AppCodeRouteImport } from './routes/app/code'
 import { Route as AppCreativeLabRouteImport } from './routes/app/creative-lab'
+import { Route as AppDataAnalystRouteImport } from './routes/app/data-analyst'
 import { Route as AppExploreRouteImport } from './routes/app/explore'
 import { Route as AppFilePreviewRouteImport } from './routes/app/file-preview'
 import { Route as AppFilesRouteImport } from './routes/app/files'
+import { Route as AppHomeRouteImport } from './routes/app/home'
 import { Route as AppKnowledgeRouteImport } from './routes/app/knowledge'
 import { Route as AppLaunchpadRouteImport } from './routes/app/launchpad'
+import { Route as AppMediaToolsRouteImport } from './routes/app/media-tools'
 import { Route as AppNotesRouteImport } from './routes/app/notes'
 import { Route as AppPromptsRouteImport } from './routes/app/prompts'
 import { Route as AppReleaseNotesRouteImport } from './routes/app/release-notes'
@@ -113,6 +116,11 @@ const AppCreativeLabRoute = AppCreativeLabRouteImport.update({
   path: '/creative-lab',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDataAnalystRoute = AppDataAnalystRouteImport.update({
+  id: '/data-analyst',
+  path: '/data-analyst',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppExploreRoute = AppExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
@@ -128,6 +136,11 @@ const AppFilesRoute = AppFilesRouteImport.update({
   path: '/files',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppKnowledgeRoute = AppKnowledgeRouteImport.update({
   id: '/knowledge',
   path: '/knowledge',
@@ -136,6 +149,11 @@ const AppKnowledgeRoute = AppKnowledgeRouteImport.update({
 const AppLaunchpadRoute = AppLaunchpadRouteImport.update({
   id: '/launchpad',
   path: '/launchpad',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMediaToolsRoute = AppMediaToolsRouteImport.update({
+  id: '/media-tools',
+  path: '/media-tools',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotesRoute = AppNotesRouteImport.update({
@@ -432,11 +450,14 @@ export interface FileRoutesByFullPath {
   '/app/chat': typeof AppChatRoute
   '/app/code': typeof AppCodeRoute
   '/app/creative-lab': typeof AppCreativeLabRoute
+  '/app/data-analyst': typeof AppDataAnalystRoute
   '/app/explore': typeof AppExploreRoute
   '/app/file-preview': typeof AppFilePreviewRoute
   '/app/files': typeof AppFilesRoute
+  '/app/home': typeof AppHomeRoute
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/launchpad': typeof AppLaunchpadRoute
+  '/app/media-tools': typeof AppMediaToolsRoute
   '/app/notes': typeof AppNotesRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/release-notes': typeof AppReleaseNotesRoute
@@ -501,11 +522,14 @@ export interface FileRoutesByTo {
   '/app/chat': typeof AppChatRoute
   '/app/code': typeof AppCodeRoute
   '/app/creative-lab': typeof AppCreativeLabRoute
+  '/app/data-analyst': typeof AppDataAnalystRoute
   '/app/explore': typeof AppExploreRoute
   '/app/file-preview': typeof AppFilePreviewRoute
   '/app/files': typeof AppFilesRoute
+  '/app/home': typeof AppHomeRoute
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/launchpad': typeof AppLaunchpadRoute
+  '/app/media-tools': typeof AppMediaToolsRoute
   '/app/notes': typeof AppNotesRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/release-notes': typeof AppReleaseNotesRoute
@@ -569,11 +593,14 @@ export interface FileRoutesById {
   '/app/chat': typeof AppChatRoute
   '/app/code': typeof AppCodeRoute
   '/app/creative-lab': typeof AppCreativeLabRoute
+  '/app/data-analyst': typeof AppDataAnalystRoute
   '/app/explore': typeof AppExploreRoute
   '/app/file-preview': typeof AppFilePreviewRoute
   '/app/files': typeof AppFilesRoute
+  '/app/home': typeof AppHomeRoute
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/launchpad': typeof AppLaunchpadRoute
+  '/app/media-tools': typeof AppMediaToolsRoute
   '/app/notes': typeof AppNotesRoute
   '/app/prompts': typeof AppPromptsRoute
   '/app/release-notes': typeof AppReleaseNotesRoute
@@ -641,11 +668,14 @@ export interface FileRouteTypes {
     | '/app/chat'
     | '/app/code'
     | '/app/creative-lab'
+    | '/app/data-analyst'
     | '/app/explore'
     | '/app/file-preview'
     | '/app/files'
+    | '/app/home'
     | '/app/knowledge'
     | '/app/launchpad'
+    | '/app/media-tools'
     | '/app/notes'
     | '/app/prompts'
     | '/app/release-notes'
@@ -710,11 +740,14 @@ export interface FileRouteTypes {
     | '/app/chat'
     | '/app/code'
     | '/app/creative-lab'
+    | '/app/data-analyst'
     | '/app/explore'
     | '/app/file-preview'
     | '/app/files'
+    | '/app/home'
     | '/app/knowledge'
     | '/app/launchpad'
+    | '/app/media-tools'
     | '/app/notes'
     | '/app/prompts'
     | '/app/release-notes'
@@ -777,11 +810,14 @@ export interface FileRouteTypes {
     | '/app/chat'
     | '/app/code'
     | '/app/creative-lab'
+    | '/app/data-analyst'
     | '/app/explore'
     | '/app/file-preview'
     | '/app/files'
+    | '/app/home'
     | '/app/knowledge'
     | '/app/launchpad'
+    | '/app/media-tools'
     | '/app/notes'
     | '/app/prompts'
     | '/app/release-notes'
@@ -896,6 +932,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCreativeLabRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/data-analyst': {
+      id: '/app/data-analyst'
+      path: '/data-analyst'
+      fullPath: '/app/data-analyst'
+      preLoaderRoute: typeof AppDataAnalystRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/explore': {
       id: '/app/explore'
       path: '/explore'
@@ -917,6 +960,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFilesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/home': {
+      id: '/app/home'
+      path: '/home'
+      fullPath: '/app/home'
+      preLoaderRoute: typeof AppHomeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/knowledge': {
       id: '/app/knowledge'
       path: '/knowledge'
@@ -929,6 +979,13 @@ declare module '@tanstack/react-router' {
       path: '/launchpad'
       fullPath: '/app/launchpad'
       preLoaderRoute: typeof AppLaunchpadRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/media-tools': {
+      id: '/app/media-tools'
+      path: '/media-tools'
+      fullPath: '/app/media-tools'
+      preLoaderRoute: typeof AppMediaToolsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/notes': {
@@ -1332,11 +1389,14 @@ interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
   AppCodeRoute: typeof AppCodeRoute
   AppCreativeLabRoute: typeof AppCreativeLabRoute
+  AppDataAnalystRoute: typeof AppDataAnalystRoute
   AppExploreRoute: typeof AppExploreRoute
   AppFilePreviewRoute: typeof AppFilePreviewRoute
   AppFilesRoute: typeof AppFilesRoute
+  AppHomeRoute: typeof AppHomeRoute
   AppKnowledgeRoute: typeof AppKnowledgeRoute
   AppLaunchpadRoute: typeof AppLaunchpadRoute
+  AppMediaToolsRoute: typeof AppMediaToolsRoute
   AppNotesRoute: typeof AppNotesRoute
   AppPromptsRoute: typeof AppPromptsRoute
   AppReleaseNotesRoute: typeof AppReleaseNotesRoute
@@ -1355,11 +1415,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
   AppCodeRoute: AppCodeRoute,
   AppCreativeLabRoute: AppCreativeLabRoute,
+  AppDataAnalystRoute: AppDataAnalystRoute,
   AppExploreRoute: AppExploreRoute,
   AppFilePreviewRoute: AppFilePreviewRoute,
   AppFilesRoute: AppFilesRoute,
+  AppHomeRoute: AppHomeRoute,
   AppKnowledgeRoute: AppKnowledgeRoute,
   AppLaunchpadRoute: AppLaunchpadRoute,
+  AppMediaToolsRoute: AppMediaToolsRoute,
   AppNotesRoute: AppNotesRoute,
   AppPromptsRoute: AppPromptsRoute,
   AppReleaseNotesRoute: AppReleaseNotesRoute,

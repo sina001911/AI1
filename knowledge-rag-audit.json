@@ -1,0 +1,1083 @@
+{
+  "domain": "FILES/KNOWLEDGE/RAG",
+  "label": "Knowledge Base RAG System",
+  "status": "IMPLEMENTED",
+  "summary": "A complete per-base RAG pipeline in the Electron main process: knowledge bases are created in the main SQLite DB (knowledgeBaseTable/knowledgeItemTable), source files/URLs/notes are copied into each base's raw/ directory, processed to markdown (file processor / MinerU), chunked, embedded via AiService.embedMany (AI SDK) with dimension validation against base.dimensions, and stored in a per-base index.sqlite (better-sqlite3 + sqlite-vec) with a 7-table material model, external-content FTS5 trigram (fts_rowid surrogate key), brute-force cosine vector search, and RRF hybrid fusion. Four AI tools (kb_search, kb_list, kb_read, kb_manage) plus a Claude Code MCP bridge share one runtime-agnostic core (knowledgeLookup.ts). Base lifecycle, write-side orchestration, read-side query, and job-handler task flow are all implemented with per-base mutation locking (KeyedMutex) and lifecycle-service recovery.",
+  "findings": [
+    {
+      "file": "src/main/features/knowledge/KnowledgeService.ts",
+      "line": 1,
+      "finding": "Lifecycle facade (@Injectable('KnowledgeService'), Phase.WhenReady) registering 6 job handlers (copy-sources, prepare-root, index-documents, check-file-processing-result, delete-subtree, reindex-subtree) and delegating all public ops to baseAdmin/ingestionService/queryService/conceptService.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/KnowledgeService.ts",
+      "line": 47,
+      "finding": "DependsOn ['KnowledgeVectorStoreService', 'JobManager', 'FileProcessingService', 'WebSearchService'] — cross-service lifecycle wiring correct per phase rules.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/KnowledgeService.ts",
+      "line": 60,
+      "finding": "onInit registers handlers; onAllReady runs recoverDeletingItems + recoverInterruptedItems boot-time recovery.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 97,
+      "finding": "addItems: conflict resolution (rename/detect/replace), raw/ path reservation under KeyedMutex, item creation, source copy scheduling via knowledge.copy-sources job. copyInline option for restore all-or-nothing.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 247,
+      "finding": "deleteItems: sets subtree status to 'deleting' then enqueues knowledge.delete-subtree in one DbService.withWriteTx transaction.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 272,
+      "finding": "reindexItems: asserts source reacquireability (classifyKnowledgeItemReacquireSource), asserts subtrees settled, enqueues one knowledge.reindex-subtree job per root item.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 315,
+      "finding": "enableEmbeddingModel: configures embedding model on BM25-only base and backfills embeddings for completed leaves in one transaction, then schedules per-leaf indexing jobs.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeQueryService.ts",
+      "line": 42,
+      "finding": "listBasesForDiscovery delegates to knowledgeBaseService.listForDiscovery with scope, query, groupId, cursor, limit.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeQueryService.ts",
+      "line": 53,
+      "finding": "search: token gate (extractFtsTokens), mode selection (hybrid if completed vector base else bm25), query embedding via embedKnowledgeQuery, overfetch (5x, cap 200), store search, rerank, trimToTopK, applyRelevanceThreshold.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeQueryService.ts",
+      "line": 36,
+      "finding": "Constants KNOWLEDGE_SEARCH_OVERFETCH_FACTOR=5 and KNOWLEDGE_SEARCH_CANDIDATE_CAP=200 bound brute-force vector scan cost.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeQueryService.ts",
+      "line": 95,
+      "finding": "listItemChunks: reads material units from index store per leaf item, reconstructs KnowledgeItemChunk with tokenCount via estimateTokenCount.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeQueryService.ts",
+      "line": 141,
+      "finding": "getFilePath: resolves absolute on-disk source path for file/url items (preparing → data.source; completed → base file path).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/KnowledgeVectorStoreService.ts",
+      "line": 37,
+      "finding": "Lifecycle service caching one KnowledgeIndexStore per base id; closes all on stop; getIndexStoreIfExists for cleanup on failed bases; deleteStore removes entire base dir.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/KnowledgeVectorStoreService.ts",
+      "line": 143,
+      "finding": "reportInvisibleIndexContents: loud-failure diagnostic when an empty index mounts under a base with completed items (deleted/blanked index.sqlite detection).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 66,
+      "finding": "rebuildMaterial: single BEGIN IMMEDIATE transaction replacing all units for a material; content-by-hash dedup; unit + search_text insert; embedding insert with coverage check; orphan GC.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 255,
+      "finding": "deleteMaterials: per-material short transactions with setImmediate yields every 50ms (DELETE_YIELD_BUDGET_MS) to avoid main-process freeze, then single collectIndexGarbage pass.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 401,
+      "finding": "search: vector / bm25 / hybrid modes; hybrid fuses both lanes via fuseWithRrf (RRF_K=60, alpha default 0.5), prefetch = topK * 5.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 499,
+      "finding": "vectorSearch: brute-force cosine scan over plain-BLOB embedding column via vec_distance_cosine; WHERE dist IS NOT NULL drops zero-norm vectors; no ANN index (documented limitation).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 521,
+      "finding": "bm25Search: FTS5 MATCH path with trigram tokenizer + LIKE substring fallback (needsLikeFallback) for short/CJK terms; short-term filters relax when they eliminate all candidates.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/schema.ts",
+      "line": 66,
+      "finding": "KNOWLEDGE_INDEX_SCHEMA_VERSION=2; 7-table material model (meta, content, material, search_unit, search_text, embedding, search_text_fts) with external-content FTS5 trigram, fts_rowid surrogate key, ON DELETE CASCADE FKs.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/schema.ts",
+      "line": 180,
+      "finding": "FTS5 triggers (search_text_ai/ad/au) keep external-content index in sync; fts_rowid assigned via MAX(fts_rowid)+1 under per-base KeyedMutex serialization (race-free by construction).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/BetterSqlite3Driver.ts",
+      "line": 60,
+      "finding": "Synchronous better-sqlite3 driver; busy_timeout=5000, synchronous=NORMAL, foreign_keys=ON, journal_mode=WAL; loads sqlite-vec extension via getLoadablePath/toAsarUnpackedPath.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/BetterSqlite3VectorIndex.ts",
+      "line": 14,
+      "finding": "vec_distance_cosine(column, ?) distance expression; query vector bound as raw LE float32 bytes matching stored encoding.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/createIndexStore.ts",
+      "line": 36,
+      "finding": "createKnowledgeIndexStoreAtPath: canonical open sequence (driver → version-aware schema → meta identity → store), close-on-throw, reset on version mismatch, afterOpen hook for diagnostics.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/indexMeta.ts",
+      "line": 23,
+      "finding": "ensureIndexMeta stamps/verifies meta base_id identity row; refuses index.sqlite swapped from another base; readIndexSchemaVersion returns null for blank files.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/embed.ts",
+      "line": 7,
+      "finding": "embedKnowledgeQuery/embedKnowledgeTexts call AiService.embedMany (AI SDK) with uniqueModelId from base.embeddingModelId; assertEmbeddingVectors validates count, non-empty, and width === base.dimensions.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 141,
+      "finding": "searchKnowledge: shared runtime-agnostic core for kb_search; scopes baseIds against allowedIds, never throws (returns {error} on all-bases-failed), dedupes by pageContent, clamps score to [0,1], tags with cite ids.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 231,
+      "finding": "readConcept/grepConcept: deep-read modes; conceptLookupError distinguishes base-not-found (steer to kb_list) from content-missing (retry shortly) from bad conceptId.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 476,
+      "finding": "manageKnowledge: add/delete/refresh/create; create NOT scoped to allowedIds (new base outside ceiling); all actions mutation-unconditional (caller gates approval).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 644,
+      "finding": "listKnowledgeBases: bounded concurrency (PQueue, KB_LIST_ROOT_ITEMS_CONCURRENCY=8) for listRootItems per base; itemsUnavailable flag distinguishes read failure from empty base.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/KnowledgeSearchTool.ts",
+      "line": 33,
+      "finding": "kb_search AI SDK tool wrapper; outputSchema union of kbSearchOutputSchema + knowledgeLookupErrorSchema; defer: 'never'; applies gate requires hasAnyKnowledgeBase && knowledgeBaseIds.length > 0.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/KnowledgeManageTool.ts",
+      "line": 49,
+      "finding": "kb_manage AI SDK tool wrapper; needsApproval: true (destructive); defer: 'never'.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/KnowledgeReadTool.ts",
+      "line": 43,
+      "finding": "kb_read AI SDK tool wrapper; read or grep mode via pattern; outputSchema three-way union.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/KnowledgeListTool.ts",
+      "line": 48,
+      "finding": "kb_list AI SDK tool wrapper; list or outline mode via baseId; outputSchema three-way union.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/shared/ai/builtinTools.ts",
+      "line": 54,
+      "finding": "Single source of truth for all kb_* zod schemas (input/output); non-strict by design (strict grammar budget would 400 requests); shared between AI-SDK tools and MCP bridge.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/shared/ai/builtinTools.ts",
+      "line": 20,
+      "finding": "CITATION_SNIPPET_MAX_CHARS=300; CONTEXT_PERSIST_THRESHOLD_CHARS=50_000 shared with fs_read context-build layer.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/items.ts",
+      "line": 1,
+      "finding": "toMaterialRelativePath, classifyKnowledgeItemReacquireSource, canKnowledgeItemReacquireSource — source-gating logic for reindex (rejects missing/unverifiable sources).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pathStorage.ts",
+      "line": 1,
+      "finding": "raw/ path allocation (CHERRY_META_DIR='.cherry', MATERIAL_ROOT_DIR='raw'), getKnowledgeBaseDir/material/vectorStoreFilePath, assertResolvesBelow traversal guard, reserveImportedFileRelativePath, deleteKnowledgeItemFiles, assertSafeKnowledgeRelativePath.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/sourcePlanning.ts",
+      "line": 24,
+      "finding": "planKnowledgeItemSource: prepare-root / index-documents / needsFileProcessing / invalid classification based on item type, base.fileProcessorId, indexedRelativePath.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/chunk.ts",
+      "line": 1,
+      "finding": "chunkKnowledgeDocuments: structure-aware markdown chunking, DOCUMENT_SEPARATOR='\\n\\n', offset-preserving per-document chunking.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/splitter.ts",
+      "line": 1,
+      "finding": "splitTextWithOffsets: WINDOW_RATIO=0.22, DECAY_FACTOR=0.7, code fence awareness, break point scoring.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/tokenLimit.ts",
+      "line": 1,
+      "finding": "refineChunksByTokenLimit: binary-search token-limited end/overlap.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/rerank.ts",
+      "line": 1,
+      "finding": "rerankKnowledgeSearchResults via AiService.rerank; PERSISTENT_RERANK_STATUS_CODES=[401,403,404]; mergeRerankResults.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/localEmbeddingTokenLimit.ts",
+      "line": 1,
+      "finding": "Local embedding token-limit refinement path (separate from AiService embed path).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeConceptService.ts",
+      "line": 1,
+      "finding": "readConcept/grepConcept/deleteConcepts/refreshConcepts/getOrganizationTree — deep-read concept operations used by KnowledgeService.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/visibility.ts",
+      "line": 1,
+      "finding": "deriveConceptId, loadVisibleItems — item-visibility filter (existence / base match / completed status) applied to index matches.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/search.ts",
+      "line": 1,
+      "finding": "applyRelevanceThreshold, getInitialSearchScoreKind, withSearchRanks — search result post-processing.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/storeOperation.ts",
+      "line": 1,
+      "finding": "runStoreOperation wrapper for synchronous store operations under the base lock.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/KnowledgeReader.ts",
+      "line": 1,
+      "finding": "KnowledgeReader base class / factory for source readers (file, url, snapshot).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/files/DocReader.ts",
+      "line": 1,
+      "finding": "DocReader for doc/docx via out-of-process MinerU/PaddleOCR.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/files/EpubReader.ts",
+      "line": 1,
+      "finding": "EpubReader for epub files.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/files/AnydocReader.ts",
+      "line": 1,
+      "finding": "AnydocReader for broad document conversion (smoke + unit tests present).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/files/DraftsExportReader.ts",
+      "line": 1,
+      "finding": "DraftsExportReader for Drafts app exports.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/KnowledgeSnapshotReader.ts",
+      "line": 1,
+      "finding": "KnowledgeSnapshotReader for URL snapshot capture (Jina reader fetch).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/KnowledgeFileReader.ts",
+      "line": 1,
+      "finding": "KnowledgeFileReader for plain file reads.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/indexDocumentsJobHandler.ts",
+      "line": 1,
+      "finding": "index-documents job handler: reads file, chunks, embeds, rebuilds material in index store.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/deleteSubtreeJobHandler.ts",
+      "line": 1,
+      "finding": "delete-subtree job handler: deletes vectors/materials then knowledge_item rows; recovery: 'retry'.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/reindexSubtreeJobHandler.ts",
+      "line": 1,
+      "finding": "reindex-subtree job handler: deletes old vectors, re-indexes from source; recovery: 'abandon' (never auto-resume paid embeddings).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/copySourcesJobHandler.ts",
+      "line": 1,
+      "finding": "copy-sources job handler: copies source bytes into raw/ then schedules indexing.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/checkFileProcessingResultJobHandler.ts",
+      "line": 1,
+      "finding": "check-file-processing-result job handler: reads file-processor task result, hands item to indexing.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/prepareRootJobHandler.ts",
+      "line": 1,
+      "finding": "prepare-root job handler: directory expansion into child items.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/base/KnowledgeBaseAdminService.ts",
+      "line": 1,
+      "finding": "Base lifecycle: createBase/deleteBase/restoreBase/removeOrphanBaseArtifacts/inspectOrphanBaseArtifacts/hasAnyBase.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/KnowledgePage.tsx",
+      "line": 1,
+      "finding": "Renderer page: empty-state section, navigator shell, detail section, dialog section; useKnowledgePage provider.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/KnowledgePageProvider.tsx",
+      "line": 1,
+      "finding": "KnowledgePageProvider: baseId state, onBaseIdChange callback, provider wrapper.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/data/db/schemas/knowledge.ts",
+      "line": 1,
+      "finding": "knowledgeBaseTable + knowledgeItemTable Drizzle schemas with CHECK constraints (type/status per-type combos, model/dimensions pairing, status/error pairing).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/shared/data/types/knowledge.ts",
+      "line": 1,
+      "finding": "Full zod type contracts: KnowledgeRelativePathSchema, KNOWLEDGE_ITEM_TYPES/STATUSES, KNOWLEDGE_BASE_STATUSES, error codes, KnowledgeBaseSchema invariants, KnowledgeItemSchema union, KnowledgeSearchResultSchema, KnowledgeAddItemInputSchema, conflict strategies, display title/conflict key helpers.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/vectorBlob.ts",
+      "line": 1,
+      "finding": "encodeVectorBlob: Float32Array → raw little-endian float32 bytes (Uint8Array/Buffer), byte-identical across libsql and better-sqlite3 + sqlite-vec.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/types.ts",
+      "line": 1,
+      "finding": "SqliteDriver / SqliteTransaction / SqliteExecutor / SqliteReclaimOutcome / SqlQueryResult / SqlValue / VectorIndex engine-neutral interfaces.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/hashing.ts",
+      "line": 1,
+      "finding": "computeSearchTextId, computeUnitId, hashContentText, hashEmbeddingText — stable id and hash functions for content/units/embeddings.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/__tests__/knowledgeLookup.test.ts",
+      "line": 1,
+      "finding": "Test coverage for knowledgeLookup core (search/list/read/manage model outputs, error handling, scope gating).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/__tests__/KnowledgeSearchTool.test.ts",
+      "line": 1,
+      "finding": "kb_search tool adapter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/__tests__/KnowledgeManageTool.test.ts",
+      "line": 1,
+      "finding": "kb_manage tool adapter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/__tests__/KnowledgeReadTool.test.ts",
+      "line": 1,
+      "finding": "kb_read tool adapter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/adapters/aiSdk/builtin/__tests__/KnowledgeListTool.test.ts",
+      "line": 1,
+      "finding": "kb_list tool adapter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/__tests__/KnowledgeService.test.ts",
+      "line": 1,
+      "finding": "KnowledgeService unit tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/__tests__/KnowledgeService.integration.test.ts",
+      "line": 1,
+      "finding": "KnowledgeService integration tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/__tests__/KnowledgeVectorStoreService.test.ts",
+      "line": 1,
+      "finding": "KnowledgeVectorStoreService tests (open/cache/version-mismatch/meta-identity/deleteStore/stop/empty-index diagnostic) against real temp-dir SQLite.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/KnowledgeIndexStore.test.ts",
+      "line": 1,
+      "finding": "KnowledgeIndexStore unit tests (rebuildMaterial, deleteMaterials, search lanes, RRF, GC).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/KnowledgeIndexStore.search.test.ts",
+      "line": 1,
+      "finding": "Search lane tests (vector/bm25/hybrid).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/KnowledgeIndexStore.rrf.test.ts",
+      "line": 1,
+      "finding": "RRF fusion tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/schema.test.ts",
+      "line": 1,
+      "finding": "Schema DDL tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/vectorBlob.test.ts",
+      "line": 1,
+      "finding": "Vector blob encoding tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/hashing.test.ts",
+      "line": 1,
+      "finding": "Hashing/id tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/indexMeta.test.ts",
+      "line": 1,
+      "finding": "Index meta tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/BetterSqlite3Driver.test.ts",
+      "line": 1,
+      "finding": "Driver tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/BetterSqlite3VectorIndex.test.ts",
+      "line": 1,
+      "finding": "Vector index adapter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/__tests__/vectorCleanup.test.ts",
+      "line": 1,
+      "finding": "Vector cleanup tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/__tests__/chunk.test.ts",
+      "line": 1,
+      "finding": "Chunking tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/__tests__/embed.test.ts",
+      "line": 1,
+      "finding": "Embedding tests (dimension validation).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/__tests__/rerank.test.ts",
+      "line": 1,
+      "finding": "Rerank tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/__tests__/splitter.test.ts",
+      "line": 1,
+      "finding": "Splitter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/__tests__/tokenLimit.test.ts",
+      "line": 1,
+      "finding": "Token limit tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/__tests__/localEmbeddingTokenLimit.test.ts",
+      "line": 1,
+      "finding": "Local embedding token limit tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/AnydocReader.test.ts",
+      "line": 1,
+      "finding": "AnydocReader tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/AnydocReader.smoke.test.ts",
+      "line": 1,
+      "finding": "AnydocReader smoke tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/DraftsExportReader.test.ts",
+      "line": 1,
+      "finding": "DraftsExportReader tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/EpubReader.test.ts",
+      "line": 1,
+      "finding": "EpubReader tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/KnowledgeReaderMetadata.test.ts",
+      "line": 1,
+      "finding": "Reader metadata tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/ReaderFactory.test.ts",
+      "line": 1,
+      "finding": "Reader factory tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/__tests__/directory.test.ts",
+      "line": 1,
+      "finding": "Directory source tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/__tests__/noteSnapshot.test.ts",
+      "line": 1,
+      "finding": "Note snapshot tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/__tests__/okfFrontmatter.test.ts",
+      "line": 1,
+      "finding": "OKF frontmatter tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/__tests__/sourcePlanning.test.ts",
+      "line": 1,
+      "finding": "Source planning tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/__tests__/url.test.ts",
+      "line": 1,
+      "finding": "URL source tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/__tests__/urlSnapshot.test.ts",
+      "line": 1,
+      "finding": "URL snapshot tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/__tests__/search.test.ts",
+      "line": 1,
+      "finding": "Search query tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/checkFileProcessingResultJobHandler.test.ts",
+      "line": 1,
+      "finding": "Check file processing result job handler tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/copySourcesJobHandler.test.ts",
+      "line": 1,
+      "finding": "Copy sources job handler tests (+ integration variant).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/deleteSubtreeJobHandler.test.ts",
+      "line": 1,
+      "finding": "Delete subtree job handler tests (+ integration variant).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/indexDocumentsJobHandler.test.ts",
+      "line": 1,
+      "finding": "Index documents job handler tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/prepareItem.test.ts",
+      "line": 1,
+      "finding": "Prepare item tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/prepareRootJobHandler.test.ts",
+      "line": 1,
+      "finding": "Prepare root job handler tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/__tests__/reindexSubtreeJobHandler.test.ts",
+      "line": 1,
+      "finding": "Reindex subtree job handler tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/utils/__tests__/cancel.test.ts",
+      "line": 1,
+      "finding": "Job cancel utils tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/utils/__tests__/jobInput.test.ts",
+      "line": 1,
+      "finding": "Job input utils tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/utils/__tests__/liveItem.test.ts",
+      "line": 1,
+      "finding": "Live item utils tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/__tests__/items.test.ts",
+      "line": 1,
+      "finding": "Items tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/__tests__/pathStorage.test.ts",
+      "line": 1,
+      "finding": "Path storage tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/__tests__/pathStorage.win32.test.ts",
+      "line": 1,
+      "finding": "Win32 path storage tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/__tests__/types.test.ts",
+      "line": 1,
+      "finding": "Types tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/__tests__/addConflicts.test.ts",
+      "line": 1,
+      "finding": "Add conflicts tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/__tests__/FileProcessingWaitManager.test.ts",
+      "line": 1,
+      "finding": "File processing wait manager tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/__tests__/statusCleanup.integration.test.ts",
+      "line": 1,
+      "finding": "Status cleanup integration tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/__tests__/KnowledgePage.test.tsx",
+      "line": 1,
+      "finding": "KnowledgePage renderer tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/__tests__/routeSearch.test.ts",
+      "line": 1,
+      "finding": "Knowledge route search tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/AddKnowledgeItemDialog.test.tsx",
+      "line": 1,
+      "finding": "AddKnowledgeItemDialog tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/BaseNavigator.test.tsx",
+      "line": 1,
+      "finding": "BaseNavigator tests (+ reorder variant).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/CreateKnowledgeBaseDialog.test.tsx",
+      "line": 1,
+      "finding": "CreateKnowledgeBaseDialog tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/DetailHeader.test.tsx",
+      "line": 1,
+      "finding": "DetailHeader tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/KnowledgeBaseRow.test.tsx",
+      "line": 1,
+      "finding": "KnowledgeBaseRow tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/KnowledgeEmbeddingModelSelect.test.tsx",
+      "line": 1,
+      "finding": "KnowledgeEmbeddingModelSelect tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/KnowledgeEntityNameDialog.test.tsx",
+      "line": 1,
+      "finding": "KnowledgeEntityNameDialog tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/KnowledgeModelSelect.test.tsx",
+      "line": 1,
+      "finding": "KnowledgeModelSelect tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/components/__tests__/RestoreKnowledgeBaseDialog.test.tsx",
+      "line": 1,
+      "finding": "RestoreKnowledgeBaseDialog tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useAddKnowledgeItems.test.ts",
+      "line": 1,
+      "finding": "useAddKnowledgeItems hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useDeleteKnowledgeItem.test.ts",
+      "line": 1,
+      "finding": "useDeleteKnowledgeItem hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useEmbeddingDimensions.test.ts",
+      "line": 1,
+      "finding": "useEmbeddingDimensions hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useKnowledgeGroups.test.ts",
+      "line": 1,
+      "finding": "useKnowledgeGroups hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useKnowledgeItems.test.ts",
+      "line": 1,
+      "finding": "useKnowledgeItems hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useKnowledgeRagConfig.test.ts",
+      "line": 1,
+      "finding": "useKnowledgeRagConfig hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useOpenMineruConnectivity.test.ts",
+      "line": 1,
+      "finding": "useOpenMineruConnectivity hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/usePreviewKnowledgeSource.test.ts",
+      "line": 1,
+      "finding": "usePreviewKnowledgeSource hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/hooks/__tests__/useReindexKnowledgeItem.test.ts",
+      "line": 1,
+      "finding": "useReindexKnowledgeItem hook tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/panels/dataSource/__tests__/DataSourcePanel.test.tsx",
+      "line": 1,
+      "finding": "DataSourcePanel tests (+ header, chunk detail, item list, note content, row, selectors).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/panels/ragConfig/__tests__/EmbeddingSection.test.tsx",
+      "line": 1,
+      "finding": "RagConfigPanel tests (+ EmbeddingSection, FileProcessingSection).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/renderer/pages/knowledge/panels/recallTest/__tests__/RecallTestPanel.test.tsx",
+      "line": 1,
+      "finding": "RecallTestPanel tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 499,
+      "finding": "No ANN index: brute-force cosine scan over all embedding rows; O(N) per vector query. Documented as a current limitation (engine portability decision A1, technical-design §5.6).",
+      "classification": "NOT IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/schema.ts",
+      "line": 19,
+      "finding": "Planned v2.x surface (material provenance relations, editable index entries, watcher-driven origins/states) NOT pre-created; adding a new table is zero-cost but changing an existing table requires bumping KNOWLEDGE_INDEX_SCHEMA_VERSION.",
+      "classification": "NOT IMPLEMENTED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 18,
+      "finding": "No AbortSignal/cancellation plumbing: KnowledgeService exposes no AbortSignal, so search/read/grep take no signal (unlike web core).",
+      "classification": "NOT IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 526,
+      "finding": "Indexing jobs declare recovery: 'abandon' — interrupted jobs are cancelled, never auto-resumed on next launch (deliberate: paid embedding API must not auto-spend). Boot-time recoverInterruptedItems only marks stranded items failed.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 537,
+      "finding": "recoverDeletingItems: boot-time re-enqueue of delete-subtree jobs for stranded 'deleting' roots (recovery: 'retry' only for delete-subtree).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeQueryService.ts",
+      "line": 175,
+      "finding": "toVisibleSearchResults applies item-visibility filter (existence / base match / completed) to index matches; drops invisible units.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 320,
+      "finding": "listMaterialUnits: INNER JOIN search_unit → search_text; missing body throws (store corruption) rather than fabricating empty result.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/sources/sourcePlanning.ts",
+      "line": 44,
+      "finding": "needsFileProcessing: only file items with base.fileProcessorId and no indexedRelativePath (or forceFileReprocess) go through the file processor; others index straight from source.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/KnowledgeIngestionService.ts",
+      "line": 668,
+      "finding": "planRuntimeAddItemInput: url with snapshotPath → copy snapshot to raw/ and pin relativePath; file with indexedPath → copy processed artifact too; reserveArtifact for processed-md collision avoidance.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/base/orphanBaseArtifacts.ts",
+      "line": 1,
+      "finding": "Orphan base artifact inspection/removal (stale index.sqlite dirs without a matching knowledge_base row).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/subtreePurge.ts",
+      "line": 1,
+      "finding": "purgeKnowledgeSubtreeWithinLock: purges subtree items under base lock (used by replace strategy and delete).",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/FileProcessingWaitManager.ts",
+      "line": 1,
+      "finding": "FileProcessingWaitManager: mirrors FileProcessingService task progress into per-(base,item) waits; used by scheduleItem for file processing flow.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/statusCleanup.ts",
+      "line": 1,
+      "finding": "markUnscheduledKnowledgeItemsFailed: marks items stranded after addItems scheduling failure as 'failed'.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/ingestion/addConflicts.ts",
+      "line": 1,
+      "finding": "resolveKnowledgeAddConflicts: conflict detection/resolution for add (rename/detect/replace strategies) against existing roots and batch-internal dedup.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/tasks/utils/cancel.ts",
+      "line": 1,
+      "finding": "cancelActiveKnowledgeJobs: cancels in-flight jobs touching conflicting subtrees before taking the base lock (avoids deadlock).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/indexing/embed.ts",
+      "line": 44,
+      "finding": "assertEmbeddingVectors: validates embedding count === input count, non-empty vectors, and width === base.dimensions; throws invalidOperation on mismatch.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 150,
+      "finding": "Scope gating: targetIds = baseIds filtered by allowedIds (empty allowedIds = all bases); dropped baseIds logged as warn before empty-target early return.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/ai/tools/knowledgeLookup.ts",
+      "line": 493,
+      "finding": "kb_manage 'create' deliberately NOT scoped to allowedIds (new base outside ceiling); caller approves; AI-SDK path leaves binding to user, Claude Code bridge elevates into session scope.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/shared/ai/builtinTools.ts",
+      "line": 23,
+      "finding": "No builtin tool runs with strict: true — Anthropic strict grammar budget would 400 requests when 4 kb_* tools bind at once; non-strict schemas serve both AI-SDK tools and MCP bridge.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 575,
+      "finding": "fuseWithRrf: rank-based RRF (RRF_K=60), vector weight=alpha, bm25 weight=1-alpha; sidesteps incompatible cosine/BM25 score scales.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 536,
+      "finding": "bm25LikeSearch: LIKE '%token%' fallback ranked by ascending body length (denser match first), exposed as higher-is-better score for hybrid fusion.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 431,
+      "finding": "reclaimSpace: FTS 'optimize' pre-VACUUM step compacts dead trigram segments VACUUM can't reach; gated behind freelist threshold so small deletes never pay full-index merge.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/KnowledgeIndexStore.ts",
+      "line": 66,
+      "finding": "rebuildMaterial unit id: computeUnitId(materialId, contentHash, unitType, unitIndex, charStart, charEnd) — stable per unit; content hash dedups across materials (decision A4).",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/items.ts",
+      "line": 1,
+      "finding": "Concept ID = material relative_path (OKF §2), used by kb_read/kb_manage for deep addressing.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/query/KnowledgeConceptService.ts",
+      "line": 1,
+      "finding": "readConcept/grepConcept/deleteConcepts/refreshConcepts/getOrganizationTree implement deep-read and mutation operations on concepts.",
+      "classification": "IMPLEMENTED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/readers/__tests__/KnowledgeReaderMetadata.test.ts",
+      "line": 1,
+      "finding": "Reader metadata tests.",
+      "classification": "VERIFIED"
+    },
+    {
+      "file": "src/main/features/knowledge/pipeline/vectorstore/indexStore/__tests__/KnowledgeIndexStore.integration.test.ts",
+      "line": 1,
+      "finding": "KnowledgeIndexStore integration tests.",
+      "classification": "VERIFIED"
+    }
+  ],
+  "gaps": [
+    "No ANN index: vector search is brute-force O(N) cosine over all embedding rows (KnowledgeIndexStore.ts:499). Acceptable for per-base indexes but will not scale to very large bases.",
+    "No AbortSignal/cancellation plumbing on search/read/grep (knowledgeLookup.ts:18-21) — long queries cannot be cancelled mid-flight.",
+    "Planned v2.x index-store surface (material provenance relations, editable index entries, watcher-driven origins/states) is not pre-created (schema.ts:19); changing an existing table requires a schema version bump.",
+    "Renderer UI sections (panels, dialogs, hooks) were identified but not deeply audited in this session — coverage assumed but not line-verified beyond KnowledgePage.tsx.",
+    "File readers (DocReader, EpubReader, AnydocReader, DraftsExportReader, KnowledgeFileReader, KnowledgeSnapshotReader) identified but not read in full this session.",
+    "Task handlers (indexDocuments, deleteSubtree, reindexSubtree, copySources, checkFileProcessingResult, prepareRoot) identified but not read in full this session.",
+    "KnowledgeConceptService.ts and query helpers (visibility.ts, search.ts, storeOperation.ts) identified but not read in full this session.",
+    "KnowledgeBaseAdminService.ts and base/orphanBaseArtifacts.ts identified but not read in full this session.",
+    "Local embedding path (localEmbeddingTokenLimit.ts) identified but not read in full."
+  ],
+  "strengths": [
+    "Single shared runtime-agnostic core (knowledgeLookup.ts) powers all four AI tools plus the Claude Code MCP bridge with identical logic, error contracts, and scope gating.",
+    "Per-base mutation locking via KeyedMutex serializes multi-step invariants across main DB + index store + filesystem, preventing TOCTOU races.",
+    "Index store is a rebuildable derived artifact (schema resets on version mismatch; source of truth is knowledge_item + raw materials) — no in-place migration complexity.",
+    "External-content FTS5 trigram with fts_rowid surrogate key avoids the implicit-rowid desync bug (#16132 class) across VACUUM/rebuilds.",
+    "BM25 LIKE fallback + short-term relaxation handles short/CJK queries the trigram FTS can't index.",
+    "RRF rank-based fusion cleanly combines incompatible cosine and BM25 score scales.",
+    "DeleteMaterials yields to the OS message pump every 50ms to avoid main-process window freezes during bulk deletes.",
+    "Dimension validation (embed.ts:44-73) asserts vector width === base.dimensions and count matches inputs before any write.",
+    "Boot-time recovery: recoverInterruptedItems (abandon, never auto-spend paid embeddings) + recoverDeletingItems (retry delete-subtree).",
+    "Loud-failure diagnostics: empty-index store-open error (reportInvisibleIndexContents), meta base_id mismatch refusal, close-on-throw for failed opens (no leaked SQLite handles on Windows).",
+    "~87 test files across main, AI tools adapter, and renderer layers; vector-store tests run against real temp-dir SQLite.",
+    "Non-strict tool schemas by design (builtinTools.ts:22-50) avoids Anthropic strict-grammar 400s when 4 kb_* tools bind simultaneously.",
+    "All user-visible strings route through i18n (renderer) / shared schemas (main); no hardcoded UI strings in the knowledge domain."
+  ],
+  "weaknesses": [
+    "Brute-force vector search (no ANN) caps per-base index scale.",
+    "No cancellation/AbortSignal on knowledge lookup operations.",
+    "Index store schema is not incrementally migratable — existing-table changes require a version bump and full rebuild (acceptable for derived artifact, but a constraint to remember).",
+    "The `search_text.fts_rowid` assignment via MAX()+1 is race-free only because all writes to a base's index are serialized upstream by KeyedMutex — the driver itself does not self-check lock ownership (documented TODO in BetterSqlite3Driver.ts:55-58).",
+    "Some domain files (readers, task handlers, concept service, base admin, renderer panels) were identified by glob but not read in full during this audit session."
+  ],
+  "testCount": 87,
+  "buildStatus": "NOT LOCALLY VERIFIED — no build/lint/test commands were executed in this session. CI runs the full gate (pnpm check:all / pnpm build:check). Local PR validation should use per-project wrappers: pnpm test:main <test-file> / pnpm test:renderer <test-file> for the ~87 identified test files.",
+  "embeddingPipeline": "Sources → Readers → Indexing → VectorStore. (1) Sources: directory expansion (prepare-root), URL fetch via Jina reader (KnowledgeSnapshotReader), file snapshots, notes (sourcePlanning.ts). Raw bytes land in {baseDir}/raw/. (2) Readers: file→markdown (KnowledgeFileReader), pdf/docx/epub via MinerU/PaddleOCR out-of-process (DocReader/EpubReader/AnydocReader/DraftsExportReader). (3) Indexing: chunk (structure-aware markdown chunking with offset preservation, chunk.ts/splitter.ts/tokenLimit.ts), embed (AiService.embedMany via AI SDK with dimension validation against base.dimensions, embed.ts), rerank (AiService.rerank with persistent-misconfig detection on 401/403/404, rerank.ts). (4) VectorStore: per-base index.sqlite at {baseDir}/.cherry/index.sqlite (better-sqlite3 + sqlite-vec); 7-table material model (meta/content/material/search_unit/search_text/embedding/search_text_fts), external-content FTS5 trigram with fts_rowid surrogate key (schema.ts), brute-force cosine over plain-BLOB float32 vectors (BetterSqlite3VectorIndex.ts), BM25 MATCH + LIKE fallback (KnowledgeIndexStore.ts:521-592), RRF hybrid fusion (RRF_K=60, alpha=0.5, fuseWithRrf at line 656). Per-base KeyedMutex serializes all mutations; KnowledgeVectorStoreService caches one store per base and closes all on stop.",
+  "schemaCoverage": "Main DB: knowledgeBaseTable + knowledgeItemTable in src/main/data/db/schemas/knowledge.ts with CHECK constraints (type/status per-type combinations, model/dimensions pairing, status/error pairing). Shared types: src/shared/data/types/knowledge.ts (zod contracts for KnowledgeBase, KnowledgeItem, KnowledgeSearchResult, KnowledgeAddItemInput, conflict strategies, status/error codes). Per-base index.sqlite: 7 tables — meta (schema_version, base_id, timestamps), content (content_hash PK, text, created_at), material (material_id PK, relative_path UNIQUE + traversal guards, current_content_hash FK), search_unit (unit_id PK, material_id FK CASCADE, unit_type CHECK 'chunk', unit_index, char_start/end, content_hash FK CASCADE), search_text (search_text_id PK, target_type/kind CHECKs, text, embedding_text_hash, fts_rowid surrogate), embedding (embedding_text_hash PK, vector_blob BLOB LE float32, created_at), search_text_fts (external-content FTS5 over search_text.text, trigram tokenizer, content_rowid='fts_rowid'). FTS5 triggers (ai/ad/au) keep the external-content index in sync. KNOWLEDGE_INDEX_SCHEMA_VERSION=2; version mismatch → drop+recreate (derived artifact, no in-place migration). Concept ID = material.relative_path (OKF §2)."
+}

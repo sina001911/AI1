@@ -15,6 +15,7 @@ import { buildAgentSessionTopicId } from '@main/ai/agentSession/topic'
 import { findPersistedToolOutput } from '@main/ai/messages/persistedToolOutput'
 import { AgentSessionForkError } from '@main/ai/runtime/fork'
 import { AiStreamAdmissionError, type MainDispatchRequest, WebContentsListener } from '@main/ai/streamManager'
+import { analyzeData } from '@main/ai/tools/dataAnalysis'
 import { openRequestPath } from '@main/services/file'
 import { PathStaleVersionError } from '@main/utils/file'
 import { isAgentSessionForkFailureReason } from '@shared/ai/agentSessionFork'
@@ -171,6 +172,9 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
   // The continuation dispatch streams to the caller window, so it needs that window's WebContents.
   'ai.tool.respond_approval': (payload, { senderId }) =>
     application.get('AiService').respondToolApproval(payload, senderWebContents(senderId)),
+
+  // ── Data analysis — renderer page calls the shared analyzeData core directly. ──
+  'data.analyze': async (input) => analyzeData(input),
 
   // ── Agent creation + session warm-connection lifecycle. ──
   'ai.agent.create': createAgent,

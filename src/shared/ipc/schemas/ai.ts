@@ -3,6 +3,7 @@ import * as z from 'zod'
 
 import { imageParamsSchema } from '@cherrystudio/provider-registry'
 import type { AgentAttachmentSelection } from '@cherrystudio/remote-protocol/agent'
+import type { DataAnalysisOutput } from '@shared/ai/builtinTools'
 import type { ClaudeCodeBinaryStatus } from '@shared/ai/claudeCodeBinary'
 import type {
   AiStreamAttachResponse,
@@ -487,6 +488,18 @@ export const aiRequestSchemas = {
       anchorId: z.string().optional()
     }) satisfies z.ZodType<AiToolApprovalRespondRequest>,
     output: z.object({ ok: z.boolean() })
+  }),
+
+  // ── Data analysis (renderer page, not an agent tool) ──
+  // Runs the shared CSV analyze core (`analyzeData`) so the renderer page and the
+  // `data_analyze` builtin tool produce identical summary / columns / chart output.
+  'data.analyze': defineRoute({
+    input: z.strictObject({
+      csv: z.string().trim().min(1),
+      instruction: z.string().trim().min(1).max(500),
+      focusColumn: z.string().optional()
+    }) satisfies z.ZodType<{ csv: string; instruction: string; focusColumn?: string }>,
+    output: z.custom<DataAnalysisOutput>()
   }),
 
   // ── Agent session warm-connection lifecycle ──

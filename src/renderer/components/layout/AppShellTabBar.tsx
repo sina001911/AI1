@@ -22,8 +22,8 @@ import { isMac, isWin } from '@renderer/utils/platform'
 import { cn } from '@renderer/utils/style'
 
 import { WindowControls } from '../WindowControls'
-import { ShellTabBarActions } from './ShellTabBarActions'
 import { TabIcon } from './TabIcon'
+import { UnifiedTopbar } from './UnifiedTopbar'
 import { useTabDrag } from './useTabDrag'
 
 import './ShellNavigation.css'
@@ -1158,7 +1158,7 @@ export const AppShellTabBar = ({
             <WindowControls />
           </div>
         ) : (
-          <ShellTabBarActions />
+          <UnifiedTopbar />
         )}
       </header>
     </>

@@ -2,10 +2,12 @@ import { CircleCheck, Loader2, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@cherrystudio/ui'
+import { useWindowRuntime } from '@renderer/hooks/useWindowRuntime'
 
 import { useRelocationProgress } from './hooks/useRelocationProgress'
 
 const RelocationApp = () => {
+  useWindowRuntime()
   const { t } = useTranslation()
   const { progress, restart } = useRelocationProgress()
   const stage = progress?.stage
