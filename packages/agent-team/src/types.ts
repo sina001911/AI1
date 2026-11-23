@@ -273,17 +273,7 @@ export interface Artifact {
   updatedAt: number
 }
 
-export const ARTIFACT_TYPES = [
-  'text',
-  'code',
-  'image',
-  'video',
-  'audio',
-  'document',
-  'data',
-  'asset',
-  'other'
-] as const
+export const ARTIFACT_TYPES = ['text', 'code', 'image', 'video', 'audio', 'document', 'data', 'asset', 'other'] as const
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number]
 
 /** A claim about an artifact that another agent can verify or dispute. */
@@ -459,6 +449,40 @@ export interface OutputConflict {
   resolvedBy: string | null
   resolvedAt: number | null
   createdAt: number
+}
+
+/**
+ * Performance metrics for a specialist, used by the adaptive router to
+ * bias routing toward specialists with a proven track record.
+ */
+export interface SpecialistPerformance {
+  specialistId: string
+  /** Total number of tasks assigned to this specialist. */
+  totalRuns: number
+  /** Number of tasks completed successfully. */
+  completedRuns: number
+  /** Number of tasks that failed. */
+  failedRuns: number
+  /** Average task duration in milliseconds (completed tasks only). */
+  avgDurationMs: number
+  /** Average quality score (0-1) from reviews/ratings, if any. */
+  avgQualityScore: number | null
+  /** Timestamp of the most recent task assignment. */
+  lastRunAt: number | null
+  /** Per-feature performance breakdown. Keyed by AgentFeature. */
+  featurePerformance: Record<string, { runs: number; successes: number }>
+}
+
+/**
+ * Outcome of a specialist task execution, recorded for adaptive learning.
+ */
+export interface TaskOutcome {
+  specialistId: string
+  taskId: string
+  outcome: 'completed' | 'failed'
+  durationMs: number
+  qualityScore?: number
+  timestamp: number
 }
 
 // ── Runtime interfaces for the scheduler ────────────────────────────────────
