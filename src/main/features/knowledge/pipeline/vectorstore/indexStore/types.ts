@@ -23,6 +23,8 @@ export interface SqlQueryResult {
   rows: Array<Record<string, SqlValue>>
   /** Rows inserted/updated/deleted by this statement (0 for a read). */
   changes: number
+  /** Rowid of the last inserted row within this connection (non-reader statements only). */
+  lastInsertRowid: number
 }
 
 /** Runs a single statement. Implemented by both the driver and a transaction handle. */

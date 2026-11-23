@@ -7,6 +7,8 @@ import {
   toFtsMatchQuery
 } from '@main/utils/trigramFtsQuery'
 
+import { backfillAnnShadow } from './annBackfill'
+import { sweepAnnShadow } from './annSweep'
 import { computeSearchTextId, computeUnitId, hashContentText, hashEmbeddingText } from './hashing'
 import { hasAnyMaterial as indexHasAnyMaterial } from './indexMeta'
 import type {
@@ -546,16 +548,24 @@ export class KnowledgeIndexStore {
    * correct even when the shadow is empty or stale — only latency changes.
    */
   private annSearch(queryEmbedding: number[], topK: number): KnowledgeIndexSearchMatch[] {
-    // Coverage gate: when the shadow is too sparse, skip ANN entirely and use
-    // brute-force so we never pay ANN overhead for no benefit.
-    const stats = this.driver.execute(
-      `SELECT
-         (SELECT COUNT(*) FROM ann_embedding_map) AS map_count,
-         (SELECT COUNT(*) FROM embedding) AS emb_count`
-    )
-    const row = stats.rows[0] as Record<string, unknown> | undefined
-    const mapCount = Number(row?.map_count ?? 0)
-    const embCount = Number(row?.emb_count ?? 0)
+    // Coverage gate: when the shadow is too sparse or absent, skip ANN entirely
+    // and use brute-force. Shadow table absence means vec0 is unsupported — fall
+    // back silently rather than throwing.
+    let mapCount = 0
+    let embCount = 0
+    try {
+      const stats = this.driver.execute(
+        `SELECT
+           (SELECT COUNT(*) FROM ann_embedding_map) AS map_count,
+           (SELECT COUNT(*) FROM embedding) AS emb_count`
+      )
+      const row = stats.rows[0] as Record<string, unknown> | undefined
+      mapCount = Number(row?.map_count ?? 0)
+      embCount = Number(row?.emb_count ?? 0)
+    } catch {
+      // Shadow table doesn't exist (vec0 unsupported) — brute-force only.
+      return this.vectorSearch(queryEmbedding, topK)
+    }
     const coverage = embCount > 0 ? mapCount / embCount : 0
     if (coverage < ANN_MIN_COVERAGE) {
       logger.debug('ANN shadow below coverage threshold, using brute-force', {
@@ -632,6 +642,38 @@ export class KnowledgeIndexStore {
       }
     }
     return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, topK)
+  }
+
+  /**
+   * Backfill the ANN shadow table from `embedding` rows not yet in `ann_embedding_map`.
+   * Runs synchronously in bounded batches; the caller holds the base mutation lock.
+   * Returns the total number of rows backfilled (0 when caught up or shadow absent).
+   */
+  backfillAnnShadow(batchSize?: number): number {
+    return backfillAnnShadow(this.driver, batchSize)
+  }
+
+  /**
+   * Sweep orphaned ANN shadow rows: map entries whose `ann_rowid` no longer exists in
+   * `ann_embedding`, and vec0 rows whose hash no longer exists in `embedding`.
+   * Runs synchronously under the caller's transaction. Returns rows swept.
+   */
+  sweepAnnShadow(): number {
+    return sweepAnnShadow(this.driver)
+  }
+
+  /**
+   * Whether the ANN shadow table exists and is queryable. False when vec0 is
+   * unsupported by the bundled build (table creation failed at open) — in that case
+   * search always uses brute-force.
+   */
+  hasAnnShadow(): boolean {
+    try {
+      const result = this.driver.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ann_embedding'`)
+      return result.rows.length > 0
+    } catch {
+      return false
+    }
   }
 
   private bm25Search(queryText: string, topK: number): KnowledgeIndexSearchMatch[] {

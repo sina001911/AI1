@@ -74,10 +74,10 @@ export class BetterSqlite3Driver implements SqliteDriver {
     // `reader` is true for statements that yield rows (SELECT, row-returning PRAGMA).
     // run() throws on those and all() throws on non-row statements, so split on it.
     if (stmt.reader) {
-      return { rows: stmt.all(...bound) as Array<Record<string, SqlValue>>, changes: 0 }
+      return { rows: stmt.all(...bound) as Array<Record<string, SqlValue>>, changes: 0, lastInsertRowid: 0 }
     }
     const result = stmt.run(...bound)
-    return { rows: [], changes: result.changes }
+    return { rows: [], changes: result.changes, lastInsertRowid: Number(result.lastInsertRowid) }
   }
 
   transaction<T>(fn: (tx: SqliteTransaction) => T): T {

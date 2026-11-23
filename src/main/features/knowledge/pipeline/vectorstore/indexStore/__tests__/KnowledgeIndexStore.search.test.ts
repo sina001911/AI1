@@ -304,4 +304,19 @@ describe('KnowledgeIndexStore.search', () => {
     expect(() => store.search({ queryText: 'apple', mode: 'vector', topK: 5 })).toThrow(/query embedding/)
     expect(() => store.search({ queryText: 'apple', mode: 'hybrid', topK: 5 })).toThrow(/query embedding/)
   })
+
+  it('annSearch falls back to brute-force when shadow table is absent', async () => {
+    // vec0 unsupported: ann_embedding table wasn't created at open. ANN search
+    // must fall back to brute-force and still return correct results.
+    indexMaterial('m1', 'a.md', 'apple pie', [1, 0, 0])
+    indexMaterial('m2', 'b.md', 'banana bread', [0, 1, 0])
+
+    // Ann shadow table doesn't exist — search must fall back to brute-force.
+    expect(store.hasAnnShadow()).toBe(false)
+
+    const matches = store.search({ queryText: '', queryEmbedding: [0.95, 0.05, 0], mode: 'vector', topK: 10 })
+
+    expect(matches.map((m) => m.materialId)).toEqual(['m1', 'm2'])
+    expect(matches[0].score).toBeGreaterThan(matches[1].score)
+  })
 })

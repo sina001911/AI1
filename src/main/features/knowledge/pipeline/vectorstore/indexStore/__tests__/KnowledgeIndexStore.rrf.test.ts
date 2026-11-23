@@ -37,10 +37,10 @@ function createFakeDriver(vectorRows: Array<Record<string, SqlValue>>, bm25Rows:
     const limit = Number(args[args.length - 1])
     if (sql.includes('search_text_fts MATCH')) {
       limits.bm25 = limit
-      return { rows: bm25Rows, changes: 0 }
+      return { rows: bm25Rows, changes: 0, lastInsertRowid: 0 }
     }
     limits.vector = limit
-    return { rows: vectorRows, changes: 0 }
+    return { rows: vectorRows, changes: 0, lastInsertRowid: 0 }
   })
   const driver: SqliteDriver = {
     execute,
