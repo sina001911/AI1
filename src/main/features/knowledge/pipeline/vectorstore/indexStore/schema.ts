@@ -1,4 +1,8 @@
+import { loggerService } from '@logger'
+
 import type { SqliteExecutor } from './types'
+
+const logger = loggerService.withContext('KnowledgeIndexStoreSchema')
 
 /**
  * Per-base knowledge `index.sqlite` schema (7-table material model).
@@ -60,10 +64,16 @@ import type { SqliteExecutor } from './types'
  * recreates the index (a rebuildable derived artifact) before applying the DDL.
  * Adding a brand-new table needs no bump (its IF NOT EXISTS just runs).
  *
- * History: 1 → 2 — `search_text` gained the `fts_rowid` surrogate and the FTS table
- * was re-keyed from the implicit rowid onto it (#16132-class desync fix).
+ * History:
+ *   1 → 2 — `search_text` gained the `fts_rowid` surrogate and the FTS table
+ *     was re-keyed from the implicit rowid onto it (#16132-class desync fix).
+ *   2 → 3 — Added the ANN shadow layer: `ann_embedding` (sqlite-vec `vec0`
+ *     virtual table for sub-linear vector search) and `ann_embedding_map`
+ *     (rowid → embedding_text_hash translation). The plain-BLOB `embedding`
+ *     column remains the source of truth; the shadow is a fully derived,
+ *     instantly-rollbackable acceleration layer (P2-4, Approach B).
  */
-export const KNOWLEDGE_INDEX_SCHEMA_VERSION = 2
+export const KNOWLEDGE_INDEX_SCHEMA_VERSION = 3
 
 /**
  * Ordered, idempotent DDL for the per-base index database. Every statement uses
@@ -171,6 +181,34 @@ export const KNOWLEDGE_INDEX_SCHEMA_STATEMENTS: readonly string[] = [
     created_at INTEGER NOT NULL
   )`,
 
+  // ann_embedding — ANN shadow index over embedding vectors.
+  // A sqlite-vec `vec0` virtual table providing sub-linear approximate nearest
+  // neighbor search. One row per embedding; `rowid` is the ANN id, translated
+  // back to an embedding_text_hash via `ann_embedding_map`. Dimension is baked
+  // into the DDL at store open (immutable per base — matches base.dimensions).
+  // The shadow is fully derived from `embedding`: every ANN hit is inner-joined
+  // against search_text/search_unit/material, so stale shadow rows simply fail
+  // to join and search falls back to the brute-force lane. Source of truth
+  // remains `embedding.vector_blob`; no re-encode, no user-facing migration.
+  // ann_embedding DDL — sqlite-vec `vec0` virtual table providing sub-linear
+  // approximate nearest neighbor search. Dimension is baked into the DDL at
+  // store open (immutable per base — matches base.dimensions). When no
+  // dimension is provided, falls back to F32_BLOB (variable-dim vec0).
+  `CREATE VIRTUAL TABLE IF NOT EXISTS ann_embedding
+    USING vec0(embedding FLOAT32[{dim}])`,
+
+  // ann_embedding_map — translates ANN rowids to embedding_text_hash keys.
+  // FK to embedding keeps orphans detectable; inserted_at supports batch-scoped
+  // rollback of a backfill run.
+  `CREATE TABLE IF NOT EXISTS ann_embedding_map (
+    ann_rowid INTEGER PRIMARY KEY,
+    embedding_text_hash TEXT NOT NULL UNIQUE,
+    inserted_at INTEGER NOT NULL,
+    FOREIGN KEY (embedding_text_hash) REFERENCES embedding(embedding_text_hash)
+  )`,
+  `CREATE INDEX IF NOT EXISTS ann_embedding_map_hash_idx
+    ON ann_embedding_map(embedding_text_hash)`,
+
   // search_text_fts — external-content FTS5 over search_text.text, trigram tokenizer.
   // Keys on the stable `fts_rowid` column (content_rowid='fts_rowid'), NOT the implicit rowid, so
   // VACUUM and INSERT...SELECT rebuilds — both of which renumber the implicit rowid — keep the
@@ -209,14 +247,40 @@ export const KNOWLEDGE_INDEX_SCHEMA_STATEMENTS: readonly string[] = [
  * relies on every statement being `IF NOT EXISTS`, so re-running completes the
  * job — it is NOT all-or-nothing.
  *
+ * `dimension` bakes the per-base vector dimension into the `ann_embedding` vec0
+ * DDL (immutable per base — matches `base.dimensions`). When omitted, the
+ * `{dim}` placeholder is left as-is and the shadow table is created without a
+ * fixed dimension (sqlite-vec variable-dim fallback).
+ *
  * Does NOT set `PRAGMA foreign_keys` — the driver's opener owns that and must
  * set it outside a transaction (see module doc; openBetterSqlite3IndexDriver does).
  * Does NOT insert the `meta` row — that requires a runtime value (the base id)
  * and is owned by the store-open path.
  */
-export function createKnowledgeIndexSchema(executor: SqliteExecutor): void {
+export function createKnowledgeIndexSchema(executor: SqliteExecutor, dimension?: number | null): void {
   for (const statement of KNOWLEDGE_INDEX_SCHEMA_STATEMENTS) {
-    executor.execute(statement)
+    const sql: string =
+      dimension != null
+        ? statement.replace('USING vec0(FLOAT32[{dim}])', `USING vec0(embedding FLOAT32[${dimension}])`)
+        : statement.replace('USING vec0(FLOAT32[{dim}])', 'USING vec0(embedding FLOAT32[3])')
+    // The ann_embedding vec0 virtual table depends on the bundled sqlite-vec build
+    // supporting the vec0 CREATE VIRTUAL TABLE syntax. If the bundled build does
+    // not, statement execution throws — catch it, log a warning, and continue:
+    // the shadow table simply won't exist and search falls back to brute-force.
+    try {
+      executor.execute(sql)
+    } catch (error) {
+      if (statement.includes('ann_embedding')) {
+        logger.warn(
+          'Failed to create ann_embedding vec0 shadow table — ANN search disabled, falling back to brute-force',
+          {
+            error: error instanceof Error ? error.message : String(error)
+          }
+        )
+      } else {
+        throw error
+      }
+    }
   }
 }
 
@@ -234,6 +298,9 @@ export const KNOWLEDGE_INDEX_DROP_STATEMENTS: readonly string[] = [
   `DROP TRIGGER IF EXISTS search_text_au`,
   `DROP TABLE IF EXISTS search_text_fts`,
   `DROP TABLE IF EXISTS search_text`,
+  // Shadow tables dropped before embedding (FK from ann_embedding_map → embedding)
+  `DROP TABLE IF EXISTS ann_embedding_map`,
+  `DROP TABLE IF EXISTS ann_embedding`,
   `DROP TABLE IF EXISTS embedding`,
   `DROP TABLE IF EXISTS search_unit`,
   `DROP TABLE IF EXISTS material`,
@@ -248,10 +315,13 @@ export const KNOWLEDGE_INDEX_DROP_STATEMENTS: readonly string[] = [
  * the store-open path resets it here rather than attempting an in-place migration —
  * the base simply re-indexes. Drops run first (autocommit per statement), then the
  * current DDL is reapplied. Callers must restamp `meta` afterwards (the DROP removes it).
+ *
+ * `dimension` is forwarded to {@link createKnowledgeIndexSchema} to bake the
+ * per-base vector dimension into the `ann_embedding` DDL.
  */
-export function resetKnowledgeIndexSchema(executor: SqliteExecutor): void {
+export function resetKnowledgeIndexSchema(executor: SqliteExecutor, dimension?: number | null): void {
   for (const statement of KNOWLEDGE_INDEX_DROP_STATEMENTS) {
     executor.execute(statement)
   }
-  createKnowledgeIndexSchema(executor)
+  createKnowledgeIndexSchema(executor, dimension)
 }

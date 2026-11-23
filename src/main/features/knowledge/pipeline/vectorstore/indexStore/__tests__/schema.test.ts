@@ -268,7 +268,7 @@ describe('knowledge index schema', () => {
       // KNOWLEDGE_INDEX_SCHEMA_VERSION is mirrored as MOCK_SCHEMA_VERSION in
       // KnowledgeVectorStoreService.test.ts; bumping the real constant must fail here so the
       // mirror is consciously updated in lockstep.
-      expect(KNOWLEDGE_INDEX_SCHEMA_VERSION).toBe(2)
+      expect(KNOWLEDGE_INDEX_SCHEMA_VERSION).toBe(3)
     })
 
     it('resetKnowledgeIndexSchema wipes data, rebuilds every object, and lets meta restamp the version', () => {

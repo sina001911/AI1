@@ -43,6 +43,12 @@ const EMBEDDING_HASH_QUERY_BATCH = 500
  */
 const DELETE_YIELD_BUDGET_MS = 50
 
+/** Minimum fraction of embeddings that must have a shadow row before ANN is used. */
+const ANN_MIN_COVERAGE = 0.9
+
+/** How many ANN candidates to over-fetch before filtering/fallback (matches the BM25 prefetch factor). */
+const ANN_OVERFETCH_FACTOR = 5
+
 /**
  * Engine-neutral store over a per-base `index.sqlite`. Written once; the storage
  * engine is swapped by injecting a different {@link SqliteDriver} (better-sqlite3
@@ -51,11 +57,18 @@ const DELETE_YIELD_BUDGET_MS = 50
  * Retrieval (BM25 + brute-force vector + RRF) applies no material-level filter
  * here; the knowledge_item-level filter (existence / lifecycle status) lives in
  * the caller (it reads the global app DB, not this per-base index).
+ *
+ * When `useAnnShadow` is true and the shadow is healthy, vector/hybrid searches
+ * hit the sqlite-vec `vec0` ANN index first and fall back to the brute-force
+ * cosine scan for residual/missing slots. The brute-force lane is always
+ * preserved as the correctness backstop (P2-4, Approach B).
  */
 export class KnowledgeIndexStore {
   constructor(
     private readonly driver: SqliteDriver,
-    private readonly vectorIndex: VectorIndex
+    private readonly vectorIndex: VectorIndex,
+    /** When true, vector/hybrid searches use ANN first with brute-force fallback. Default off for safe rollout. */
+    private readonly useAnnShadow: boolean = false
   ) {}
 
   /**
@@ -403,14 +416,18 @@ export class KnowledgeIndexStore {
       return this.bm25Search(input.queryText, input.topK)
     }
     if (input.mode === 'vector') {
-      return this.vectorSearch(this.requireQueryEmbedding(input), input.topK)
+      return this.useAnnShadow
+        ? this.annSearch(this.requireQueryEmbedding(input), input.topK)
+        : this.vectorSearch(this.requireQueryEmbedding(input), input.topK)
     }
 
     const alpha = input.alpha ?? 0.5
     const prefetch = input.topK * 5
     // Both lanes are synchronous SQL over the same connection — sequential, not
     // Promise.all: the driver has no true concurrency to parallelize.
-    const vector = this.vectorSearch(this.requireQueryEmbedding(input), prefetch)
+    const vector = this.useAnnShadow
+      ? this.annSearch(this.requireQueryEmbedding(input), prefetch)
+      : this.vectorSearch(this.requireQueryEmbedding(input), prefetch)
     const bm25 = this.bm25Search(input.queryText, prefetch)
     return fuseWithRrf(vector, bm25, alpha, input.topK)
   }
@@ -516,6 +533,105 @@ export class KnowledgeIndexStore {
       [this.vectorIndex.bindQueryVector(queryEmbedding), topK]
     )
     return result.rows.map((row) => toMatch(row, 1 - Number(row.dist)))
+  }
+
+  /**
+   * ANN-first vector search with brute-force fallback (P2-4, Approach B).
+   *
+   * Queries the sqlite-vec `vec0` shadow index first for sub-linear nearest
+   * neighbor retrieval, then inner-joins hits against `search_text`/`search_unit`
+   * to materialize content (stale shadow rows fail to join and are dropped).
+   * If valid ANN hits are fewer than topK, the residual slots are filled by the
+   * brute-force cosine scan excluding units already returned. Results remain
+   * correct even when the shadow is empty or stale — only latency changes.
+   */
+  private annSearch(queryEmbedding: number[], topK: number): KnowledgeIndexSearchMatch[] {
+    // Coverage gate: when the shadow is too sparse, skip ANN entirely and use
+    // brute-force so we never pay ANN overhead for no benefit.
+    const stats = this.driver.execute(
+      `SELECT
+         (SELECT COUNT(*) FROM ann_embedding_map) AS map_count,
+         (SELECT COUNT(*) FROM embedding) AS emb_count`
+    )
+    const row = stats.rows[0] as Record<string, unknown> | undefined
+    const mapCount = Number(row?.map_count ?? 0)
+    const embCount = Number(row?.emb_count ?? 0)
+    const coverage = embCount > 0 ? mapCount / embCount : 0
+    if (coverage < ANN_MIN_COVERAGE) {
+      logger.debug('ANN shadow below coverage threshold, using brute-force', {
+        coverage,
+        mapCount,
+        embCount,
+        threshold: ANN_MIN_COVERAGE
+      })
+      return this.vectorSearch(queryEmbedding, topK)
+    }
+
+    // ANN lane: sub-linear nearest neighbor over the vec0 shadow table.
+    // `v.embedding MATCH ?` binds the raw LE float32 blob — byte-identical to
+    // the stored `vector_blob` encoding (encodeVectorBlob), no re-encode.
+    const annResult = this.driver.execute(
+      `SELECT m.embedding_text_hash, v.distance
+       FROM ann_embedding v
+       JOIN ann_embedding_map m ON m.ann_rowid = v.rowid
+       WHERE v.embedding MATCH ?
+       ORDER BY v.distance
+       LIMIT ?`,
+      [this.vectorIndex.bindQueryVector(queryEmbedding), topK * ANN_OVERFETCH_FACTOR]
+    )
+
+    // Filter hits: inner-join against search_text/search_unit so stale shadow
+    // rows (hash deleted from embedding) fail to join and are dropped.
+    // Score = 1 - distance, same scale as brute-force (sqlite-vec cosine
+    // distance == vec_distance_cosine — confirm against bundled build, spec §13).
+    const annHits: KnowledgeIndexSearchMatch[] = []
+    const seenUnitIds = new Set<string>()
+    for (const row of annResult.rows) {
+      const hash = row.embedding_text_hash as string
+      const dist = Number(row.distance)
+      const unitResult = this.driver.execute(
+        `SELECT su.unit_id, su.material_id, su.unit_index, st.text AS body
+         FROM search_text st
+         JOIN search_unit su ON su.unit_id = st.target_id
+         WHERE st.embedding_text_hash = ?
+           AND st.target_type = 'search_unit' AND st.kind = 'body'`,
+        [hash]
+      )
+      if (unitResult.rows.length > 0) {
+        const urow = unitResult.rows[0]
+        const unitId = urow.unit_id as string
+        if (!seenUnitIds.has(unitId)) {
+          seenUnitIds.add(unitId)
+          annHits.push({
+            unitId: unitId as string,
+            materialId: urow.material_id as string,
+            unitIndex: Number(urow.unit_index),
+            text: urow.text as string,
+            score: 1 - dist
+          })
+        }
+      }
+    }
+
+    // If ANN filled enough slots, return topK ANN hits ranked by score.
+    if (annHits.length >= topK) {
+      return annHits.sort((a, b) => b.score - a.score).slice(0, topK)
+    }
+
+    // Fallback: brute-force scan for the residual slots, excluding units already
+    // returned by ANN. The brute-force lane has its own WHERE dist IS NOT NULL
+    // guard and ORDER BY, so we merge + dedupe + re-sort.
+    const brute = this.vectorSearch(queryEmbedding, (topK - annHits.length) * ANN_OVERFETCH_FACTOR)
+    const merged = new Map<string, KnowledgeIndexSearchMatch>()
+    for (const hit of annHits) {
+      merged.set(hit.unitId, hit)
+    }
+    for (const hit of brute) {
+      if (!merged.has(hit.unitId)) {
+        merged.set(hit.unitId, hit)
+      }
+    }
+    return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, topK)
   }
 
   private bm25Search(queryText: string, topK: number): KnowledgeIndexSearchMatch[] {

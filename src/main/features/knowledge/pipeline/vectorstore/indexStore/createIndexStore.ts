@@ -11,6 +11,13 @@ const logger = loggerService.withContext('KnowledgeIndexStoreFactory')
 export interface CreateKnowledgeIndexStoreOptions {
   baseId: string
   /**
+   * Per-base vector dimension, baked into the `ann_embedding` vec0 DDL at store
+   * open (immutable per base — matches `base.dimensions`). When null/undefined,
+   * the shadow table is created without a fixed dimension (sqlite-vec variable-dim
+   * fallback) and the ANN health probe falls back to brute-force on mismatch.
+   */
+  dimension?: number | null
+  /**
    * Runs synchronously on the freshly opened store, INSIDE this factory's
    * close-on-throw region, before the store is returned. The runtime passes its
    * empty-index diagnostic here so a throwing probe still closes the driver (a
@@ -55,9 +62,9 @@ export function createKnowledgeIndexStoreAtPath(
         storedVersion,
         expectedVersion: KNOWLEDGE_INDEX_SCHEMA_VERSION
       })
-      resetKnowledgeIndexSchema(driver)
+      resetKnowledgeIndexSchema(driver, options.dimension)
     } else {
-      createKnowledgeIndexSchema(driver)
+      createKnowledgeIndexSchema(driver, options.dimension)
     }
     // Stamp + verify the meta identity row before handing out the store, so an
     // index.sqlite swapped in from another base is rejected here (§4.1).

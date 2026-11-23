@@ -123,6 +123,7 @@ export class KnowledgeVectorStoreService extends BaseService {
     // getIndexStore relies on: no `await` runs between its cache-miss and cache-set.
     return createKnowledgeIndexStoreAtPath(getKnowledgeVectorStoreFilePathSync(base.id), {
       baseId: base.id,
+      dimension: base.dimensions,
       afterOpen: (store) => this.reportInvisibleIndexContents(store, base.id)
     })
   }
