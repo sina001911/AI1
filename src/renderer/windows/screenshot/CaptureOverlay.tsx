@@ -1,7 +1,6 @@
 import type { Dispatch, FC, MouseEvent as ReactMouseEvent, RefObject } from 'react'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { useTranslation } from 'react-i18next'
 
 import { loggerService } from '@logger'
 import { useWindowInitData } from '@renderer/hooks/useWindowInitData'
@@ -37,8 +36,6 @@ const logger = loggerService.withContext('CaptureOverlay')
  * tools, and the paths that hand the result back to the main process.
  */
 const CaptureOverlay: FC = () => {
-  const { i18n } = useTranslation()
-
   // RTL languages (Persian / Arabic) flip the document direction so text,
   // flex-end margins, and scrollbar placement all read right-to-left.
   useWindowRuntime()
