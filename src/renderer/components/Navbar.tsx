@@ -5,7 +5,11 @@ import { cn } from '@renderer/utils/style'
 
 type Props = PropsWithChildren & HTMLAttributes<HTMLDivElement>
 
-export const Navbar: FC<Props> = () => null
+export const Navbar: FC<Props> = ({ title, children, ...props }) => (
+  <NavbarMainContainer {...props}>
+    <NavbarCenterContainer>{title ?? children}</NavbarCenterContainer>
+  </NavbarMainContainer>
+)
 
 export const NavbarLeft: FC<Props> = ({ children, ...props }) => {
   return <NavbarLeftContainer {...props}>{children}</NavbarLeftContainer>

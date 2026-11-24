@@ -46,6 +46,7 @@ import { cn } from '@cherrystudio/ui/lib/utils'
 import { DIALOG_UNMOUNT_DELAY_MS } from '@cherrystudio/ui/utils'
 import AppLogo from '@renderer/assets/images/logo.png'
 import ToastHost from '@renderer/components/ToastHost'
+import { useWindowRuntime } from '@renderer/hooks/useWindowRuntime'
 import { loggerService } from '@renderer/services/LoggerService'
 import { isMac } from '@renderer/utils/platform'
 import {
@@ -358,6 +359,7 @@ const themeLabelKey: Record<string, string> = {
 }
 
 const MigrationApp: React.FC = () => {
+  useWindowRuntime()
   const { t, i18n } = useTranslation()
   const { progress, lastError } = useMigrationProgress()
   const actions = useMigrationActions()
@@ -415,6 +417,14 @@ const MigrationApp: React.FC = () => {
     return () => media.removeEventListener('change', update)
   }, [themeMode])
   const ThemeIcon = themeMode === 'dark' ? Moon : themeMode === 'light' ? Sun : Monitor
+
+  // RTL languages (Persian / Arabic) flip the document direction so text,
+  // flex-end margins, and scrollbar placement all read right-to-left.
+  useEffect(() => {
+    const rtl = i18n.language === 'fa-IR'
+    document.documentElement.setAttribute('dir', rtl ? 'rtl' : 'ltr')
+    return () => document.documentElement.removeAttribute('dir')
+  }, [i18n.language])
 
   // Main intercepts an in-flow-stage close (native traffic light / Cmd+Q / custom button) and
   // asks the renderer to show its in-app confirmation dialog here, so the prominent styling

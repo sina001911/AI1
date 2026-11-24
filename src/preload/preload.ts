@@ -225,7 +225,20 @@ const api = {
     onSync: (callback: (message: CacheSyncMessage) => void) => {
       const listener = (_: any, message: CacheSyncMessage) => callback(message)
       ipcRenderer.on(IpcChannel.Cache_Sync, listener)
-      return () => ipcRenderer.off(IpcChannel.Cache_Sync, listener)
+
+      // Unpack batched sync messages and dispatch each to the callback, so
+      // consumers see individual messages regardless of batching on the main side.
+      const batchListener = (_: any, batch: CacheSyncMessage[]) => {
+        for (const message of batch) {
+          callback(message)
+        }
+      }
+      ipcRenderer.on(IpcChannel.Cache_SyncBatch, batchListener)
+
+      return () => {
+        ipcRenderer.off(IpcChannel.Cache_Sync, listener)
+        ipcRenderer.off(IpcChannel.Cache_SyncBatch, batchListener)
+      }
     },
 
     // Get all shared cache entries from Main for initialization sync

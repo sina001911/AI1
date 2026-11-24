@@ -8,7 +8,7 @@ import RelocationApp from '../RelocationApp'
 const { useRelocationProgressMock } = vi.hoisted(() => ({ useRelocationProgressMock: vi.fn() }))
 const restartMock = vi.fn()
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en-US' } }) }))
 vi.mock('../hooks/useRelocationProgress', () => ({ useRelocationProgress: useRelocationProgressMock }))
 
 beforeEach(() => {

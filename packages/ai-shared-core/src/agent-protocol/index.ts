@@ -1,0 +1,51 @@
+/**
+ * Re-exports the pure domain types of Collaborative Studio from @cherrystudio/agent-team.
+ * These types are intentionally free of Electron/provider-SDK coupling so they can be
+ * shared between desktop, mobile clients, and the backend orchestrator.
+ */
+
+export type {
+  SpecialistRole,
+  ExecutionStrategy,
+  TaskStatus,
+  RunStatus,
+  ToolPermission,
+  TaskGate,
+  SharedContextEntry,
+  AgentMessage,
+  SharedContext,
+  ModelConfig,
+  ToolPermissionMap,
+  Specialist,
+  Leader,
+  Team,
+  Task,
+  ExecutionPlan,
+  ExecutionRun,
+  TeamEvent,
+  ExecutionResult,
+  SpecialistExecutor,
+  DirectMessageSender,
+  ExecutePlanOptions,
+  ArtifactStatus,
+  Artifact,
+  ArtifactType,
+  ArtifactClaim,
+  ToolCapability,
+  AgentFeature,
+  AGENT_FEATURES,
+  AgentCapabilities,
+  ProjectFile,
+  ProjectCheckpoint,
+  Project,
+  ProjectDomain,
+  ProjectStatus,
+  ReviewSeverity,
+  ReviewFinding,
+  QualityReview,
+  OutputConflict,
+  SpecialistPerformance,
+  TaskOutcome,
+  ArtifactRegistry,
+  ProjectWorkspace
+} from '@cherrystudio/agent-team'

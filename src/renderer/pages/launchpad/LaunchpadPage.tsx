@@ -19,6 +19,7 @@ import personalizationIcon from '@renderer/assets/images/apps/launchpad-personal
 import studioIcon from '@renderer/assets/images/apps/launchpad-studio.svg'
 import translateIcon from '@renderer/assets/images/apps/launchpad-translate.svg'
 import workflowsIcon from '@renderer/assets/images/apps/launchpad-workflows.svg'
+import { SidebarIcon } from '@renderer/components/app/sidebarIcons'
 import { CommandContextMenu, type CommandContextMenuExtraItem } from '@renderer/components/command'
 import SidebarShortcutIcon from '@renderer/components/icons/SidebarShortcutIcon'
 import App from '@renderer/components/MiniApp/MiniApp'
@@ -43,7 +44,7 @@ const APP_ICON_FRAME_CLASS =
 const APP_ICON_CLASS = 'size-11 object-contain'
 const SORTABLE_CONTENTS_STYLE = { display: 'contents' } as const
 
-const APP_ICON_SOURCES: Record<SidebarAppId, string> = {
+const APP_ICON_SOURCES: Partial<Record<SidebarAppId, string>> = {
   assistants: assistantsIcon,
   agents: agentsIcon,
   paintings: paintingsIcon,
@@ -260,7 +261,11 @@ export default function LaunchpadPage() {
         <span className="relative flex size-14 items-center justify-center">
           <span className={APP_ICON_SURFACE_CLASS}>
             <span className={APP_ICON_FRAME_CLASS}>
-              <img src={item.iconSrc} alt="" className={APP_ICON_CLASS} draggable={false} />
+              {item.iconSrc ? (
+                <img src={item.iconSrc} alt="" className={APP_ICON_CLASS} draggable={false} />
+              ) : (
+                <SidebarIcon icon={item.id} size={11} strokeWidth={1.6} />
+              )}
             </span>
           </span>
         </span>

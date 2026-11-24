@@ -1,0 +1,32 @@
+{
+  "name": "ai1-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI1 backend MVP: Auth, device management, conversation sync, credit ledger",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
+    "db:migrate": "tsx scripts/db/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cherrystudio/ai-shared-core": "workspace:*",
+    "better-sqlite3": "12.11.1",
+    "drizzle-orm": "^0.44.5",
+    "elysia": "^1.4.28"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.10.4",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24.12.0"
+  }
+}

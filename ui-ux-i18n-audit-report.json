@@ -1,0 +1,214 @@
+{
+  "meta": {
+    "domain": "ui-ux-i18n",
+    "auditedAt": "2026-11-14",
+    "repo": "D:\\AI1",
+    "branch": "main",
+    "classifications": [
+      "VERIFIED",
+      "IMPLEMENTED",
+      "PARTIAL",
+      "NOT IMPLEMENTED",
+      "HYPOTHESIS",
+      "NOT VERIFIED",
+      "BLOCKED",
+      "REQUIRES APPROVAL"
+    ]
+  },
+  "testCount": {
+    "packagesUiTestFiles": 59,
+    "srcRendererTestFiles": "1207+ (glob truncated at 100 listed)",
+    "note": "packages/ui tests colocated in __tests__ folders alongside components/scripts/lib; src/renderer tests spread across components, pages, hooks"
+  },
+  "buildStatus": {
+    "buildScript": "pnpm build = typecheck && dotenv ... electron-vite build && build:utility-process",
+    "typecheckScript": "pnpm typecheck = pnpm check --all --group types",
+    "lintScript": "pnpm lint = oxlint --deny-warnings && eslint",
+    "tailwindConfig": "none at root (Tailwind CSS v4, config lives in CSS/theme layer; no tailwind.config.js found)",
+    "locallyVerified": false,
+    "assessment": "NOT VERIFIED — build/lint/typecheck were not executed in this session; CI runs pnpm check:all / pnpm lint:test as gates"
+  },
+  "findings": [
+    {
+      "area": "i18n — primary catalog coverage",
+      "label": "renderer i18n catalogs (main window)",
+      "status": "PARTIAL",
+      "summary": "en-us.json is the source of truth with 6364 top-level flat keys. fa-IR.json matches exactly (6364 keys, 0 missing, 0 extra) but contains 20 untranslated entries: 19 placeholder strings prefixed '[to be translated]:' plus 1 empty value at settings.provider.oauth.provided_by_suffix.",
+      "findings": [
+        "src/renderer/i18n/locales/en-us.json — 6364 top-level keys, source of truth",
+        "src/renderer/i18n/locales/fa-ir.json — 6364 keys (exact match), 0 missing/extra, 20 placeholders/empty (19 '[to be translated]:' + 1 empty at settings.provider.oauth.provided_by_suffix)",
+        "src/renderer/i18n/resolver.ts — initI18n() loads 16 locale packs via resourcesToBackend, including fa-IR (line 38); dayjs fa locale imported (line 4) and fa-IR mapped to dayjs 'fa' (line 68); missingKeyHandler logs error (line 115-117)",
+        "keySeparator: false (flat keys), load: currentOnly, fallbackLng: defaultLanguage (en-US)"
+      ],
+      "gaps": [
+        "20 fa-IR keys remain untranslated (placeholders/empty) — Persian UI shows English fallbacks for those entries",
+        "No automated translation-completion gate beyond pnpm i18n:check rejecting leftover placeholders in source (en-us); fa placeholders are tolerated"
+      ],
+      "strengths": [
+        "Exact key parity between en-us and fa (0 missing/extra)",
+        "Lazy per-locale chunks; no window bundles translation JSON up front",
+        "dayjs locale wired for Persian date formatting"
+      ],
+      "weaknesses": [
+        "20 untranslated fa entries degrade Persian completeness",
+        "saveMissing: true could accumulate junk keys in dev"
+      ],
+      "files": [
+        "D:\\AI1\\src\\renderer\\i18n\\locales\\en-us.json",
+        "D:\\AI1\\src\\renderer\\i18n\\locales\\fa-ir.json",
+        "D:\\AI1\\src\\renderer\\i18n\\resolver.ts"
+      ]
+    },
+    {
+      "area": "i18n — sub-window catalogs",
+      "label": "migrationV2 + userDataRelocation windows lack Persian",
+      "status": "NOT IMPLEMENTED",
+      "summary": "The migrationV2 and userDataRelocation sub-windows ship their own locale modules with no fa-IR/fa translations at all, so Persian users see English-only UI in those flows despite fa being a supported renderer language.",
+      "findings": [
+        "D:\\AI1\\src\\renderer\\windows\\migrationV2\\i18n\\locales.ts — only zhCN + enUS (no fa-IR)",
+        "D:\\AI1\\src\\renderer\\windows\\userDataRelocation\\i18n\\locales.ts — only en + zh-CN + zh-TW (no fa-IR)",
+        "Neither window uses useWindowRuntime, so they also get no RTL dir flip"
+      ],
+      "gaps": [
+        "No fa-IR locale pack for migrationV2 window",
+        "No fa-IR locale pack for userDataRelocation window",
+        "Neither window participates in the shared useWindowRuntime RTL path"
+      ],
+      "strengths": [],
+      "weaknesses": [
+        "Persian is unsupported in two product flows (migration, data relocation)",
+        "Inconsistent i18n surface across window types"
+      ],
+      "files": [
+        "D:\\AI1\\src\\renderer\\windows\\migrationV2\\i18n\\locales.ts",
+        "D:\\AI1\\src\\renderer\\windows\\userDataRelocation\\i18n\\locales.ts"
+      ]
+    },
+    {
+      "area": "i18n — RTL direction",
+      "label": "document dir attribute for fa-IR",
+      "status": "IMPLEMENTED",
+      "summary": "RTL is implemented for fa-IR via useWindowRuntime: document.documentElement.dir is set to 'rtl' when language === 'fa-IR', else 'ltr', with cleanup on unmount. Applies to the 5 windows that mount useWindowRuntime (main, subWindow, selection/toolbar, selection/action, quickAssistant).",
+      "findings": [
+        "D:\\AI1\\src\\renderer\\hooks\\useWindowRuntime.ts lines 62-68 — sets dir=rtl for fa-IR, dir=ltr otherwise, removes attr on unmount",
+        "All 5 full-chrome windows mount useWindowRuntime: MainApp.tsx, SubWindowApp.tsx, SelectionToolbarApp.tsx, SelectionActionApp.tsx, QuickAssistantApp.tsx",
+        "ComposerSurface.tsx:343 — dir='auto' for user content auto-detection",
+        "BrowserHistoryDialog.tsx:229 — dir='ltr' hardcoded (the only explicit ltr usage)",
+        "AppShell.tsx — no dir attribute set"
+      ],
+      "gaps": [
+        "screenshot, migrationV2, userDataRelocation windows do NOT mount useWindowRuntime → no RTL dir flip in those windows",
+        "index.html files hardcode lang='zh-CN' (all windows) — HTML lang not localized to fa",
+        "AppShell.tsx does not set dir (but it is not a window root; RTL handled at document level)"
+      ],
+      "strengths": [
+        "Single centralized RTL switch in useWindowRuntime",
+        "Cleanup on unmount avoids leaking dir attribute",
+        "dayjs fa locale + fa-IR resolver entry present"
+      ],
+      "weaknesses": [
+        "RTL coverage incomplete (3 of 8 windows excluded)",
+        "HTML lang attribute not Persian-localized",
+        "dir='ltr' hardcode in BrowserHistoryDialog could override RTL in that dialog"
+      ],
+      "files": [
+        "D:\\AI1\\src\\renderer\\hooks\\useWindowRuntime.ts",
+        "D:\\AI1\\src\\renderer\\components\\composer\\ComposerSurface.tsx",
+        "D:\\AI1\\src\\renderer\\pages\\settings\\BrowserSettings\\BrowserHistoryDialog.tsx",
+        "D:\\AI1\\src\\renderer\\components\\layout\\AppShell.tsx"
+      ]
+    },
+    {
+      "area": "motion / animation",
+      "label": "design motion tokens & presets",
+      "status": "IMPLEMENTED",
+      "summary": "Motion is centralized: CSS tokens in packages/ui/src/styles/tokens/motion.css (5 durations, 3 eases, prefers-reduced-motion collapse to 0s) mirrored by JS presets in motion.ts (MOTION_DURATION, MOTION_EASE, MOTION_TRANSITION, MOTION_RESTORE_TRANSITION, MOTION_QUEUE_TRANSITION, MOTION_INSTANT_TRANSITION). prefers-reduced-motion collapses all durations to instant swap.",
+      "findings": [
+        "D:\\AI1\\packages\\ui\\src\\styles\\tokens\\motion.css — --cs-motion-duration-{fast,base,md,slow,xslow} + --cs-motion-ease-{in-out,out,queue} + --cs-motion-duration-reduced=0s; @media (prefers-reduced-motion: reduce) collapses all to 0s",
+        "D:\\AI1\\packages\\ui\\src\\styles\\motion.ts — MOTION_DURATION, MOTION_EASE, MOTION_TRANSITION, MOTION_RESTORE_TRANSITION, MOTION_QUEUE_TRANSITION, MOTION_INSTANT_TRANSITION; doc comment requires parity with CSS tokens"
+      ],
+      "gaps": [],
+      "strengths": [
+        "Single source of truth for timing/easing",
+        "OS-level reduced-motion respected in one place",
+        "JS presets mirror CSS tokens with explicit sync requirement"
+      ],
+      "weaknesses": ["Doc comment notes CSS/TS parity must be maintained manually (no automated check)"],
+      "files": [
+        "D:\\AI1\\packages\\ui\\src\\styles\\tokens\\motion.css",
+        "D:\\AI1\\packages\\ui\\src\\styles\\motion.ts"
+      ]
+    },
+    {
+      "area": "design system / UI library",
+      "label": "@cherrystudio/ui + DESIGN.md + Tailwind v4",
+      "status": "IMPLEMENTED",
+      "summary": "The design system is fully documented and implemented: DESIGN.md governs colors/typography/surfaces/motion/layout; packages/ui (@cherrystudio/ui) is a Shadcn-compatible Tailwind CSS v4 component library with a versioned variable contract (theme-contract.ts), foundation → runtime-input → public semantic → Tailwind adapter layers, Shadcn primitives + Cherry Studio product semantics, radius contract, and a migration registry with codemod enforcement.",
+      "findings": [
+        "D:\\AI1\\DESIGN.md — design direction, color, typography, surfaces, interaction/accessibility (incl. motion), layout, review checklist",
+        "D:\\AI1\\packages\\ui\\README.md — library features, integration modes, CSS variable rules, Shadcn CLI ownership, icon generation",
+        "D:\\AI1\\packages\\ui\\docs\\variable-catalog.md — variable selection order, layer map, Shadcn + Cherry Studio product variables",
+        "D:\\AI1\\packages\\ui\\docs\\design-token-system.md — v2 contract, layers, radius contract, migration registry, governance (theme:check / theme:build)",
+        "D:\\AI1\\packages\\ui\\docs\\styles-reference.md — style source file index",
+        "Tailwind CSS v4 (tailwindcss ^4.3.3, @tailwindcss/vite); no tailwind.config.js at root",
+        "Build with Tailwind & Shadcn UI mandated by CLAUDE.md for new UI components"
+      ],
+      "gaps": [],
+      "strengths": [
+        "Comprehensive, normative design documentation",
+        "Machine-enforced variable contract (theme:check validates graph, CSS, registry, renderer boundary)",
+        "Shadcn compatibility + Cherry Studio product semantics in one namespace",
+        "prefers-reduced-motion honored at token layer"
+      ],
+      "weaknesses": ["Motion parity between CSS and TS is manual (no automated check)"],
+      "files": [
+        "D:\\AI1\\DESIGN.md",
+        "D:\\AI1\\packages\\ui\\docs\\design-token-system.md",
+        "D:\\AI1\\packages\\ui\\docs\\variable-catalog.md",
+        "D:\\AI1\\packages\\ui\\README.md"
+      ]
+    },
+    {
+      "area": "i18n — index.html lang attribute",
+      "label": "HTML lang not localized",
+      "status": "NOT IMPLEMENTED",
+      "summary": "All window index.html files hardcode lang='zh-CN', so the document language is not Persian-localized even when fa-IR is active. This affects accessibility/screen-reader language announcement.",
+      "findings": [
+        "index.html files (main, quickAssistant, screenshot, selection/action, selection/toolbar, subWindow) — lang='zh-CN' hardcoded"
+      ],
+      "gaps": [
+        "No window sets lang='fa' or 'fa-IR' for Persian",
+        "lang attribute disconnected from active i18n language"
+      ],
+      "strengths": [],
+      "weaknesses": ["HTML lang not localized; screen readers announce wrong language for Persian users"],
+      "files": ["D:\\AI1\\src\\renderer\\windows\\*/index.html (multiple)"]
+    }
+  ],
+  "gaps": [
+    "20 fa-IR translation placeholders/empty values in renderer en-us/fa catalogs",
+    "migrationV2 and userDataRelocation windows have no fa-IR locale pack",
+    "screenshot, migrationV2, userDataRelocation windows do not mount useWindowRuntime → no RTL dir flip",
+    "All index.html files hardcode lang='zh-CN' (not localized to fa)",
+    "dir='ltr' hardcode in BrowserHistoryDialog.tsx:229 could override RTL",
+    "Motion CSS/TS parity is manual (no automated check)"
+  ],
+  "strengths": [
+    "Exact key parity en-us ↔ fa (6364 keys, 0 missing/extra)",
+    "Centralized RTL switch in useWindowRuntime covering 5 of 8 windows",
+    "Lazy per-locale i18n chunks; dayjs fa locale wired",
+    "Comprehensive design system documentation (DESIGN.md, variable-catalog, design-token-system)",
+    "Shadcn-compatible Tailwind v4 UI library with machine-enforced token contract (theme:check)",
+    "Motion tokens with prefers-reduced-motion collapse in one place",
+    "59 packages/ui test files + 1200+ src/renderer test files"
+  ],
+  "weaknesses": [
+    "Persian incomplete: 20 untranslated fa keys + 2 sub-windows with no fa pack",
+    "RTL incomplete: 3 of 8 windows lack dir flip",
+    "HTML lang not localized to Persian",
+    "Build/lint/typecheck not locally verified in this session",
+    "Motion CSS/TS parity not automated"
+  ],
+  "overallStatus": "PARTIAL",
+  "conclusion": "The UI/UX/i18n domain is substantially implemented: a mature Shadcn+Tailwind design system, centralized motion tokens honoring prefers-reduced-motion, and RTL for Persian in 5 of 8 windows with exact i18n key parity. However, Persian localization is incomplete — 20 untranslated fa keys, two sub-windows (migrationV2, userDataRelocation) with no fa pack, three windows without RTL dir flip, and all index.html files hardcoded to lang='zh-CN'. Build status is not locally verified."
+}

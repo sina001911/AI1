@@ -4,6 +4,7 @@ import { useHotkeys } from 'react-hotkeys-hook'
 
 import { loggerService } from '@logger'
 import { useWindowInitData } from '@renderer/hooks/useWindowInitData'
+import { useWindowRuntime } from '@renderer/hooks/useWindowRuntime'
 import { ipcApi, useIpcOn } from '@renderer/ipc'
 import type { DetectedWindow, ScreenshotInitData } from '@shared/types/screenshot'
 
@@ -35,6 +36,10 @@ const logger = loggerService.withContext('CaptureOverlay')
  * tools, and the paths that hand the result back to the main process.
  */
 const CaptureOverlay: FC = () => {
+  // RTL languages (Persian / Arabic) flip the document direction so text,
+  // flex-end margins, and scrollbar placement all read right-to-left.
+  useWindowRuntime()
+
   const initData = useWindowInitData<ScreenshotInitData>()
   const [imageLoaded, setImageLoaded] = useState(false)
   /** Pushed by main once the enumeration finishes; empty until then, which snaps to the display. */
